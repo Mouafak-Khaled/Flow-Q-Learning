@@ -1,0 +1,4 @@
+[submodule "fql"]
+	path = fql
+	url = https://github.com/seohongpark/fql.git
+	branch = master
