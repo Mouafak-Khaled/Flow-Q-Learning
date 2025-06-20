@@ -1,4 +1,4 @@
 [submodule "fql"]
 	path = fql
-	url = https://github.com/seohongpark/fql.git
+	url = git@github.com:MazenAmria/fql.git
 	branch = master
