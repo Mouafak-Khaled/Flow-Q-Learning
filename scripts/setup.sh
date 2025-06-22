@@ -23,6 +23,7 @@ conda create -y --name fql python=3.10
 conda activate fql
 
 pip install -r fql/requirements.txt
+pip install -r requirements.txt
 
 conda install -y -c conda-forge glew
 conda install -y -c conda-forge mesalib
