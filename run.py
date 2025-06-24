@@ -71,7 +71,7 @@ def run_experiment(FLAGS):
 
         # Log metrics.
         if i % FLAGS.log_interval == 0:
-            train_metrics = {f't    wandb.finish()raining/{k}': v for k, v in update_info.items()}
+            train_metrics = {f'training/{k}': v for k, v in update_info.items()}
             if val_dataset is not None:
                 val_batch = val_dataset.sample(config['batch_size'])
                 _, val_info = agent.total_loss(val_batch, grad_params=None)
