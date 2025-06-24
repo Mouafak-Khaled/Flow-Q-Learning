@@ -17,7 +17,7 @@ We reproduced the results of two tasks:
 - `antsoccer-arena-navigate-singletask-task2-v0`
 - `antsoccer-arena-navigate-singletask-task4-v0`
 
-We followed the original paper's evaluation method, by fixing the same hyperparameters and evaluating over 8 different seeds. We got results similar to the original paper, as they got $88 \pm 3$ and $39 \pm 6$, and we got $87.25 \pm 4.68$ an d $39.75 \pm 7.45$ for both tasks respectively.
+We followed the original paper's evaluation method by fixing the same hyperparameters and evaluating over 8 different seeds. We got results similar to the original paper, as they got $88 \pm 3$ and $39 \pm 6$, and we got $87.25 \pm 4.68$ an d $39.75 \pm 7.45$ for both tasks, respectively.
 
 ![](antsoccer-arena-navigate-singletask-task2-v0_success_plot.png)
 
