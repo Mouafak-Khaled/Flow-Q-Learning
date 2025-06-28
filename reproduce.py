@@ -11,7 +11,7 @@ flags.DEFINE_integer('task_id', 0, 'SLURM task ID.')
 
 flags.DEFINE_string('run_group', 'Debug', 'Run group.')
 flags.DEFINE_integer('seed', 0, 'Random seed.')
-flags.DEFINE_string('env_name', 'antsoccer-arena-navigate-singletask-v0', 'Environment (dataset) name.')
+flags.DEFINE_string('env_name', 'cube-double-play-singletask-v0', 'Environment (dataset) name.')
 flags.DEFINE_string('save_dir', 'exp/', 'Save directory.')
 
 flags.DEFINE_integer('steps', 1000000, 'Number of offline steps.')
@@ -30,10 +30,6 @@ config_flags.DEFINE_config_file('agent', 'fql/agents/fql.py', lock_config=False)
 
 def main(_):
     grid = {
-        'task': [ 
-            'antsoccer-arena-navigate-singletask-task4-v0',
-            'cube-single-play-singletask-task2-v0'
-        ],
         'seed': [ 8932, 8035, 2463, 4014, 4479, 8443, 2942, 9643 ]
     }
 
@@ -43,17 +39,8 @@ def main(_):
     task_id = FLAGS.task_id
     assert 0 <= task_id < len(combinations), "Invalid SLURM_ARRAY_TASK_ID"
 
-    task, discount, alpha, seed = combinations[task_id]
+    seed, = combinations[task_id]
 
-    if task == 'antsoccer-arena-navigate-singletask-task4-v0':
-        FLAGS.agent.alpha = 10.0
-        FLAGS.agent.discount = 0.995
-    elif task == 'cube-single-play-singletask-task2-v0':
-        FLAGS.agent.alpha = 300.0
-
-    FLAGS.env_name = task
-    FLAGS.agent.discount = discount
-    FLAGS.agent.alpha = alpha
     FLAGS.seed = seed
 
     run_experiment(FLAGS)
