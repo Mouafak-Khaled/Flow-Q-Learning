@@ -30,10 +30,7 @@ config_flags.DEFINE_config_file('agent', 'fql/agents/fql.py', lock_config=False)
 
 def main(_):
     grid = {
-        'task': [ 'antsoccer-arena-navigate-singletask-task4-v0' ],
-        'agent_discount': [ 0.995 ],
-        'agent_alpha': [ 10.0 ],
-        'seed': [ 8932, 8035, 2463, 4014, 4479, 8443, 2942, 9643 ]
+        'seed': [ 1261, 5025, 3998, 4251 ]
     }
 
     values = (grid[k] for k in grid.keys())
@@ -42,11 +39,14 @@ def main(_):
     task_id = FLAGS.task_id
     assert 0 <= task_id < len(combinations), "Invalid SLURM_ARRAY_TASK_ID"
 
-    task, discount, alpha, seed = combinations[task_id]
+    seed, = combinations[task_id]
 
-    FLAGS.env_name = task
-    FLAGS.agent.discount = discount
-    FLAGS.agent.alpha = alpha
+    FLAGS.env_name = 'visual-cube-single-play-singletask-task1-v0'
+    FLAGS.steps = 500_000
+    FLAGS.agent.alpha = 300.0
+    FLAGS.agent.encoder = 'impala_small'
+    FLAGS.p_aug = 0.5
+    FLAGS.frame_stack = 3
     FLAGS.seed = seed
 
     run_experiment(FLAGS)

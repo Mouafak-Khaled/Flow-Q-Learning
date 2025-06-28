@@ -56,4 +56,3 @@ runtime=$((end-start))
 
 echo Job execution complete.
 echo Runtime: $runtime
-
