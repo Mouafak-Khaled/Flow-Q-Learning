@@ -87,7 +87,7 @@ def run_experiment(FLAGS):
         if FLAGS.eval_interval != 0 and (i == 1 or i % FLAGS.eval_interval == 0):
             renders = []
             eval_metrics = {}
-            eval_info, trajs, cur_renders = evaluate(
+            eval_info, _, cur_renders = evaluate(
                 agent=agent,
                 env=eval_env,
                 config=config,
