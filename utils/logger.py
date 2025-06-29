@@ -1,4 +1,6 @@
+import os
 from pathlib import Path
+
 from typing_extensions import Literal
 
 from fql.utils.log_utils import CsvLogger
@@ -6,6 +8,7 @@ from fql.utils.log_utils import CsvLogger
 
 class Logger:
     def __init__(self, save_directory: Path):
+        os.makedirs(save_directory, exist_ok=True)
         self.train_logger = CsvLogger(save_directory / "train.csv")
         self.val_logger = CsvLogger(save_directory / "val.csv")
         self.eval_logger = CsvLogger(save_directory / "eval.csv")
