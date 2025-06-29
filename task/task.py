@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 from typing import Literal
 
 
-class Task(ABC):    
+class Task(ABC):
     @abstractmethod
-    def sample(self, dataset: Literal['train', 'val'], batch_size: int):
+    def sample(self, dataset: Literal["train", "val"], batch_size: int):
         """
         Abstract method to sample a batch of data from the specified dataset.
 

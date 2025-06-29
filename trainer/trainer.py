@@ -5,7 +5,9 @@ from task.task import Task
 
 
 class Trainer:
-    def __init__(self, task: Task, strategy: HpoStrategy, evaluation_mode: bool = False):
+    def __init__(
+        self, task: Task, strategy: HpoStrategy, evaluation_mode: bool = False
+    ):
         self.task = task
         self.strategy = strategy
         self.history = defaultdict(list)
@@ -41,11 +43,15 @@ class Trainer:
         candidates = self.strategy.sample()
         for step in range(steps):
             # Train each agent
-            for agent in (self.strategy.init_population if self.evaluation_mode else candidates):
+            for agent in (
+                self.strategy.init_population if self.evaluation_mode else candidates
+            ):
                 train_agent(agent, self.task)
 
             # Evaluate agents
-            for agent in (self.strategy.init_population if self.evaluation_mode else candidates):
+            for agent in (
+                self.strategy.init_population if self.evaluation_mode else candidates
+            ):
                 score = evaluate_agent(agent, self.task)
                 self.history[agent].append(score)
 
