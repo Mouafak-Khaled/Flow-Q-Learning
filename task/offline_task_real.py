@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Literal
 
 from fql.envs.env_utils import make_env_and_datasets
@@ -6,7 +7,7 @@ from task.task import Task
 
 
 class OfflineTaskWithRealEvaluations(Task):
-    def __init__(self, buffer_size: int, env_name: str):
+    def __init__(self, buffer_size: int, env_name: str, data_directory: Path = None):
         """
         Initialize the task with an evaluation environment.
 
@@ -15,7 +16,7 @@ class OfflineTaskWithRealEvaluations(Task):
             env_name: The name of the environment to create.
         """
         _, self.eval_env, self.train_dataset, self.val_dataset = make_env_and_datasets(
-            env_name
+            env_name, data_directory
         )
         self.train_dataset = Dataset.create(**self.train_dataset)
         self.train_dataset = ReplayBuffer.create_from_initial_dataset(

@@ -34,6 +34,7 @@ class TrainerConfig:
     log_interval: int = 5000
     eval_interval: int = 100000
     save_directory: Path = Path("exp/")
+    data_directory: Path = Path("data/")
     env_name: str = "cube-double-play-singletask-v0"
     agent: AgentConfig = AgentConfig()
     evaluation_mode: bool = False
