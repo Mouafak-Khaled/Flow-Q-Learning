@@ -1,4 +1,7 @@
 from abc import ABC, abstractmethod
+from typing import List
+
+from trainer.config import ExperimentConfig
 
 
 class HpoStrategy(ABC):
@@ -8,7 +11,7 @@ class HpoStrategy(ABC):
     from a population based on their performance history.
     """
 
-    def init(self, population: list) -> None:
+    def init(self, population: List[ExperimentConfig]) -> None:
         """
         Initialize the strategy with the given population of candidates.
 
@@ -19,7 +22,7 @@ class HpoStrategy(ABC):
         self.init_population = population.copy()
 
     @abstractmethod
-    def update(self, candidate, performance: float) -> None:
+    def update(self, candidate: ExperimentConfig, performance: float) -> None:
         """
         Update the performance history of a candidate.
 
@@ -30,11 +33,11 @@ class HpoStrategy(ABC):
         pass
 
     @abstractmethod
-    def sample(self) -> list:
+    def sample(self) -> List[ExperimentConfig]:
         """
         Sample candidates from the population based on the strategy.
 
         Returns:
-            list: A list of sampled candidates.
+            List[ExperimentConfig]: A list of sampled candidates.
         """
         pass

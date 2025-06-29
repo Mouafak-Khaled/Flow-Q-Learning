@@ -1,20 +1,21 @@
-from collections import defaultdict
+from copy import deepcopy
+from dataclasses import asdict
 
+from fql.agents.fql import FQLAgent
 from hpo.strategy import HpoStrategy
 from task.task import Task
+from trainer.config import TrainerConfig
+from trainer.experiment import Experiment
+from utils.logger import Logger
 
 
 class Trainer:
-    def __init__(
-        self, task: Task, strategy: HpoStrategy, evaluation_mode: bool = False
-    ):
+    def __init__(self, task: Task, strategy: HpoStrategy, config: TrainerConfig):
         self.task = task
         self.strategy = strategy
-        self.history = defaultdict(list)
+        self.config = config
 
-        self.evaluation_mode = evaluation_mode
-        if self.evaluation_mode:
-            self.stopped_at = defaultdict(int)
+        self.experiments = {}
 
     def load(self, path: str) -> None:
         """
@@ -36,41 +37,85 @@ class Trainer:
         # Implement saving logic here
         pass
 
-    def train(self, steps: int) -> None:
+    def create_experiment(self, experiment_config) -> Experiment:
+        example_batch = self.task.sample("train", 1)
+
+        agent_config = deepcopy(self.config.agent)
+        for field, value in vars(experiment_config).items():
+            if hasattr(agent_config, field):
+                setattr(agent_config, field, value)
+        experiment_name = "_".join(
+            f"{field}_{value}" for field, value in vars(experiment_config).items()
+        )
+
+        agent = FQLAgent.create(
+            self.config.seed,
+            example_batch["observations"],
+            example_batch["actions"],
+            asdict(agent_config),
+        )
+
+        self.experiments[experiment_config] = Experiment(
+            agent=agent,
+            task=self.task,
+            steps=self.config.steps,
+            log_interval=self.config.log_interval,
+            logger=Logger(
+                self.config.save_directory / self.config.env_name / experiment_name
+            ),
+        )
+
+    def train(self) -> None:
         """
         Train the agents using the specified task and strategy.
         """
         candidates = self.strategy.sample()
-        for step in range(steps):
-            # Train each agent
-            for agent in (
-                self.strategy.init_population if self.evaluation_mode else candidates
-            ):
-                train_agent(agent, self.task)
 
-            # Evaluate agents
-            for agent in (
-                self.strategy.init_population if self.evaluation_mode else candidates
+        for config in candidates:
+            if config not in self.experiments:
+                self.create_experiment(config)
+
+        for step in range(self.config.steps):
+            # Train each experiment
+            for config in (
+                self.strategy.init_population
+                if self.config.evaluation_mode
+                else candidates
             ):
-                score = evaluate_agent(agent, self.task)
-                self.history[agent].append(score)
+                self.experiments[config].train(self.config.eval_interval)
+
+            # Evaluate experiments
+            for config in (
+                self.strategy.init_population
+                if self.config.evaluation_mode
+                else candidates
+            ):
+                score = self.experiments[config].evaluate(self.config.eval_episodes)
+                self.strategy.update(self.experiments[config], score)
 
             # Sample new candidates based on the strategy
             new_candidates = self.strategy.sample()
 
-            # If in evaluation mode, track when agents stopped performing
-            if self.evaluation_mode:
-                for agent in candidates:
-                    if agent not in new_candidates:
-                        self.stopped_at[agent] = step
+            # Stop experiments that are no longer candidates
+            for config in new_candidates:
+                if config not in self.experiments:
+                    self.create_experiment(config)
+
+            # Stop experiments that are no longer candidates
+            for config in candidates:
+                if config not in new_candidates:
+                    self.experiments[config].stop(self.config.evaluation_mode)
 
             # Update candidates for the next iteration
             candidates = new_candidates
 
+        for config in candidates:
+            experiment_name = "_".join(
+                f"{field}_{value}" for field, value in vars(config).items()
+            )
+            self.experiments[config].save_agent(
+                self.config.save_directory / self.config.env_name / experiment_name
+            )
 
-def train_agent(agent, task) -> None:
-    pass
-
-
-def evaluate_agent(agent, task) -> float:
-    return 1.0
+        for experiment in self.experiments.values():
+            experiment.stop()
