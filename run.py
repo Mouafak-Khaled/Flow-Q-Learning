@@ -7,7 +7,7 @@ import time
 import numpy as np
 import tqdm
 import wandb
-
+from pathlib import Path
 from fql.agents.fql import FQLAgent
 from fql.envs.env_utils import make_env_and_datasets
 from fql.utils.datasets import Dataset, ReplayBuffer
@@ -17,19 +17,23 @@ from fql.utils.log_utils import CsvLogger, get_exp_name, get_flag_dict, setup_wa
 
 
 def run_experiment(FLAGS):
+
     # Set up logger.
     exp_name = get_exp_name(FLAGS.seed)
-    setup_wandb(project='fql', group=FLAGS.run_group, name=exp_name)
-
+    setup_wandb(project='fql', group=FLAGS.run_group, name=exp_name, logging_dir=FLAGS.logging_dir)
     FLAGS.save_dir = os.path.join(FLAGS.save_dir, wandb.run.project, FLAGS.run_group, exp_name)
+
     os.makedirs(FLAGS.save_dir, exist_ok=True)
     flag_dict = get_flag_dict()
     with open(os.path.join(FLAGS.save_dir, 'flags.json'), 'w') as f:
         json.dump(flag_dict, f)
 
     # Make environment and datasets.
+    env_name = FLAGS.env_name
+    dataset_dir = str(Path(FLAGS.dataset_dir).resolve() / env_name)
+
     config = FLAGS.agent
-    env, eval_env, train_dataset, val_dataset = make_env_and_datasets(FLAGS.env_name, frame_stack=FLAGS.frame_stack)
+    env, eval_env, train_dataset, val_dataset = make_env_and_datasets(env_name=env_name, dataset_dir=dataset_dir, frame_stack=FLAGS.frame_stack)
 
     # Initialize agent.
     random.seed(FLAGS.seed)
