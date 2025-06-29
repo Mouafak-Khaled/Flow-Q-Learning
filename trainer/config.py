@@ -18,7 +18,7 @@ class AgentConfig:
     q_agg: str = "mean"
     alpha: float = 10.0
     flow_steps: int = 10
-    normalize_q_loss: bool = False
+    normalize_q_loss: bool = True
     encoder: str = None
 
 

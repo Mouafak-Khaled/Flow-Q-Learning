@@ -1,10 +1,13 @@
 from copy import deepcopy
 from dataclasses import asdict
+import random
+
+import numpy as np
 
 from fql.agents.fql import FQLAgent
 from hpo.strategy import HpoStrategy
 from task.task import Task
-from trainer.config import TrainerConfig
+from trainer.config import ExperimentConfig, TrainerConfig
 from trainer.experiment import Experiment
 from utils.logger import Logger
 
@@ -14,6 +17,13 @@ class Trainer:
         self.task = task
         self.strategy = strategy
         self.config = config
+
+        random.seed(self.config.seed)
+        np.random.seed(self.config.seed)
+
+        strategy.init(
+            [ExperimentConfig(alpha=alpha) for alpha in [0.03, 0.1, 0.3, 1, 3, 10]]
+        )
 
         self.experiments = {}
 
@@ -75,7 +85,7 @@ class Trainer:
             if config not in self.experiments:
                 self.create_experiment(config)
 
-        for step in range(self.config.steps):
+        for _ in range(0, self.config.steps, self.config.eval_interval):
             # Train each experiment
             for config in (
                 self.strategy.init_population
