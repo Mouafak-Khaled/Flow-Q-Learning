@@ -11,7 +11,7 @@ flags.DEFINE_integer('task_id', 0, 'SLURM task ID.')
 
 flags.DEFINE_string('run_group', 'Debug', 'Run group.')
 
-flags.DEFINE_string('data_dir', './data', 'The directory where we store the data.')
+flags.DEFINE_string('dataset_dir', './data', 'The directory where we store the data.')
 flags.DEFINE_string('logging_dir', './logging', 'The directory where we store the logs of weights and bias')
 
 flags.DEFINE_integer('seed', 0, 'Random seed.')
