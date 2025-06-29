@@ -48,7 +48,6 @@ def run_experiment(FLAGS, task: Task):
     first_time = time.time()
     last_time = time.time()
 
-    expl_metrics = dict()
     for i in tqdm.tqdm(range(1, FLAGS.steps + 1), smoothing=0.1, dynamic_ncols=True):
         batch = task.sample('train', config['batch_size'])
         agent, update_info = agent.update(batch)
@@ -61,7 +60,6 @@ def run_experiment(FLAGS, task: Task):
             train_metrics.update({f'validation/{k}': v for k, v in val_info.items()})
             train_metrics['time/epoch_time'] = (time.time() - last_time) / FLAGS.log_interval
             train_metrics['time/total_time'] = time.time() - first_time
-            train_metrics.update(expl_metrics)
             last_time = time.time()
             wandb.log(train_metrics, step=i)
             train_logger.log(train_metrics, step=i)
