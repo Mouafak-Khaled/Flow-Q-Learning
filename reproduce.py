@@ -3,7 +3,8 @@ import itertools
 from absl import app, flags
 from ml_collections import config_flags
 
-from run import run_experiment 
+from run import run_experiment
+from task.offline_task_real import OfflineTaskWithRealEvaluations
 
 FLAGS = flags.FLAGS
 
@@ -21,10 +22,6 @@ flags.DEFINE_integer('eval_interval', 100000, 'Evaluation interval.')
 flags.DEFINE_integer('save_interval', 1000000, 'Saving interval.')
 
 flags.DEFINE_integer('eval_episodes', 50, 'Number of evaluation episodes.')
-flags.DEFINE_integer('video_frame_skip', 3, 'Frame skip for videos.')
-
-flags.DEFINE_float('p_aug', None, 'Probability of applying image augmentation.')
-flags.DEFINE_integer('frame_stack', None, 'Number of frames to stack.')
 
 config_flags.DEFINE_config_file('agent', 'fql/agents/fql.py', lock_config=False)
 
@@ -43,7 +40,8 @@ def main(_):
 
     FLAGS.seed = seed
 
-    run_experiment(FLAGS)
+    task = OfflineTaskWithRealEvaluations(FLAGS.buffer_size, FLAGS.env_name)
+    run_experiment(FLAGS, task)
 
 
 if __name__ == '__main__':
