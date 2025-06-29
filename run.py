@@ -1,6 +1,5 @@
-import os
-
 import json
+import os
 import random
 import time
 
@@ -9,14 +8,13 @@ import tqdm
 import wandb
 
 from fql.agents.fql import FQLAgent
-from fql.envs.env_utils import make_env_and_datasets
-from fql.utils.datasets import Dataset, ReplayBuffer
 from fql.utils.evaluation import evaluate
 from fql.utils.flax_utils import save_agent
 from fql.utils.log_utils import CsvLogger, get_exp_name, get_flag_dict, setup_wandb
+from task.task import Task
 
 
-def run_experiment(FLAGS):
+def run_experiment(FLAGS, task: Task):
     # Set up logger.
     exp_name = get_exp_name(FLAGS.seed)
     setup_wandb(project='fql', group=FLAGS.run_group, name=exp_name)
@@ -29,27 +27,13 @@ def run_experiment(FLAGS):
 
     # Make environment and datasets.
     config = FLAGS.agent
-    _, eval_env, train_dataset, val_dataset = make_env_and_datasets(FLAGS.env_name, frame_stack=FLAGS.frame_stack)
 
     # Initialize agent.
     random.seed(FLAGS.seed)
     np.random.seed(FLAGS.seed)
 
-    # Set up datasets.
-    train_dataset = Dataset.create(**train_dataset)
-    # Use the training dataset as the replay buffer.
-    train_dataset = ReplayBuffer.create_from_initial_dataset(
-        dict(train_dataset), size=max(FLAGS.buffer_size, train_dataset.size + 1)
-    )
-
-    # Set p_aug and frame_stack.
-    for dataset in [train_dataset, val_dataset]:
-        if dataset is not None:
-            dataset.p_aug = FLAGS.p_aug
-            dataset.frame_stack = FLAGS.frame_stack
-
     # Create agent.
-    example_batch = train_dataset.sample(1)
+    example_batch = task.sample('train', 1)
 
     agent = FQLAgent.create(
         FLAGS.seed,
@@ -66,16 +50,15 @@ def run_experiment(FLAGS):
 
     expl_metrics = dict()
     for i in tqdm.tqdm(range(1, FLAGS.steps + 1), smoothing=0.1, dynamic_ncols=True):
-        batch = train_dataset.sample(config['batch_size'])
+        batch = task.sample('train', config['batch_size'])
         agent, update_info = agent.update(batch)
 
         # Log metrics.
         if i % FLAGS.log_interval == 0:
             train_metrics = {f'training/{k}': v for k, v in update_info.items()}
-            if val_dataset is not None:
-                val_batch = val_dataset.sample(config['batch_size'])
-                _, val_info = agent.total_loss(val_batch, grad_params=None)
-                train_metrics.update({f'validation/{k}': v for k, v in val_info.items()})
+            val_batch = task.sample('val', config['batch_size'])
+            _, val_info = agent.total_loss(val_batch, grad_params=None)
+            train_metrics.update({f'validation/{k}': v for k, v in val_info.items()})
             train_metrics['time/epoch_time'] = (time.time() - last_time) / FLAGS.log_interval
             train_metrics['time/total_time'] = time.time() - first_time
             train_metrics.update(expl_metrics)
@@ -89,10 +72,9 @@ def run_experiment(FLAGS):
             eval_metrics = {}
             eval_info, _, cur_renders = evaluate(
                 agent=agent,
-                env=eval_env,
+                env=task,
                 config=config,
                 num_eval_episodes=FLAGS.eval_episodes,
-                video_frame_skip=FLAGS.video_frame_skip,
             )
             renders.extend(cur_renders)
             for k, v in eval_info.items():

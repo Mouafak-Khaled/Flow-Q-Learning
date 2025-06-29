@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Literal
 
 
-class Task(ABC):
+class Task(ABC):    
     @abstractmethod
     def sample(self, dataset: Literal['train', 'val'], batch_size: int):
         """
