@@ -27,6 +27,8 @@ class Trainer:
 
         self.experiments = {}
 
+        self.current_step = 0
+
     def load(self, path: str) -> None:
         """
         Load the trainer state from a file.
@@ -85,7 +87,7 @@ class Trainer:
             if config not in self.experiments:
                 self.create_experiment(config)
 
-        for _ in range(0, self.config.steps, self.config.eval_interval):
+        while self.current_step < self.config.steps:
             # Train each experiment
             for config in (
                 self.strategy.init_population
@@ -93,6 +95,8 @@ class Trainer:
                 else candidates
             ):
                 self.experiments[config].train(self.config.eval_interval)
+
+            self.current_step += self.config.eval_interval
 
             # Evaluate experiments
             for config in (
