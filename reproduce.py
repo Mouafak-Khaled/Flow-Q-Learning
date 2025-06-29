@@ -10,6 +10,10 @@ FLAGS = flags.FLAGS
 flags.DEFINE_integer('task_id', 0, 'SLURM task ID.')
 
 flags.DEFINE_string('run_group', 'Debug', 'Run group.')
+
+flags.DEFINE_string('data_dir', './data', 'The directory where we store the data.')
+flags.DEFINE_string('logging_dir', './logging', 'The directory where we store the logs of weights and bias')
+
 flags.DEFINE_integer('seed', 0, 'Random seed.')
 flags.DEFINE_string('env_name', 'antsoccer-arena-navigate-singletask-v0', 'Environment (dataset) name.')
 flags.DEFINE_string('save_dir', 'exp/', 'Save directory.')
