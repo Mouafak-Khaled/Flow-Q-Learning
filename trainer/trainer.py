@@ -21,7 +21,7 @@ class Trainer:
         random.seed(self.config.seed)
         np.random.seed(self.config.seed)
 
-        strategy.init(
+        strategy.populate(
             [ExperimentConfig(alpha=alpha) for alpha in [0.03, 0.1, 0.3, 1, 3, 10]]
         )
 
