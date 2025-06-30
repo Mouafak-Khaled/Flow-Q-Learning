@@ -19,6 +19,9 @@ def get_args() -> argparse.Namespace:
 
         --buffer_size (int): Optional. The size of the replay buffer.
             Defaults to 100000.
+
+        --use_wandb (flag): Optional. If provided, enables wandb logging.
+            Defaults to False.
     """
     parser = argparse.ArgumentParser(description="Trainer Config Overrides")
 
@@ -48,5 +51,10 @@ def get_args() -> argparse.Namespace:
         help="Replay buffer size"
     )
 
+    parser.add_argument(
+        "--use_wandb",
+        action="store_true",
+        help="Enable Weights & Biases logging (default: False)"
+    )
 
     return parser.parse_args()
