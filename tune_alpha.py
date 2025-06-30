@@ -2,11 +2,14 @@ from hpo.identity import IdentityStrategy
 from task.offline_task_real import OfflineTaskWithRealEvaluations
 from trainer.config import TrainerConfig
 from trainer.trainer import Trainer
+from argparser import get_args
 
 config = TrainerConfig()
+args = get_args()
 
-config.env_name = "antsoccer-arena-navigate-singletask-task4-v0"
-config.agent.discount = 0.995
+config.env_name = args.env_name
+config.agent.discount = args.discount
+config.buffer_size = args.buffer_size
 
 strategy = IdentityStrategy()
 
