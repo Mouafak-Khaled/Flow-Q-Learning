@@ -65,7 +65,6 @@ class Experiment:
 
         Args:
             save_directory: Directory where the agent will be saved.
-            step: Current training step.
         """
         save_dict = dict(
             agent=flax.serialization.to_state_dict(self.agent),
@@ -73,6 +72,31 @@ class Experiment:
         save_path = save_directory / f"params_{self.current_step}.pkl"
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)
+
+    def load_agent(self, load_directory: Path, step: int = None):
+        """
+        Load the agent's state from a file.
+
+        Args:
+            load_directory: Directory from which to load the agent.
+            step: Optional specific step to load (e.g., 5000 loads 'params_5000.pkl').
+                  If None, loads the most recent file based on step number.
+        """
+        if step is not None:
+            load_path = load_directory / f"params_{step}.pkl"
+        else:
+            checkpoints = list(load_directory.glob("params_*.pkl"))
+            if not checkpoints:
+                raise FileNotFoundError(f"No checkpoints found in {load_directory}")
+            checkpoints = sorted(checkpoints, key=lambda x: int(x.stem.split("_")[-1]))
+            load_path = checkpoints[-1]
+            loaded_step = int(load_path.stem.split("_")[-1])
+
+        with open(load_path, "rb") as f:
+            data = pickle.load(f)
+
+        self.agent = flax.serialization.from_state_dict(self.agent, data["agent"])
+        self.current_step = loaded_step
 
     def stop(self, eval_mode: bool = False):
         """
