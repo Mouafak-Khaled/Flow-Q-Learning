@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 @dataclass
 class AgentConfig:
+    seed: int = 0
     agent_name: str = "fql"
     ob_dims: int = None
     action_dim: int = None
@@ -18,13 +19,15 @@ class AgentConfig:
     q_agg: str = "mean"
     alpha: float = 10.0
     flow_steps: int = 10
-    normalize_q_loss: bool = True
+    normalize_q_loss: bool = False
     encoder: str = None
 
 
 @dataclass(frozen=True)
 class ExperimentConfig:
-    alpha: float = 10.0
+    seed: int | None = None
+    alpha: float | None = None
+    normalize_q_loss: bool | None = None
 
 
 @dataclass
@@ -35,6 +38,7 @@ class TrainerConfig:
     eval_interval: int = 100000
     save_directory: Path = Path("exp/")
     data_directory: Path = Path("data/")
+    use_wandb: bool = False
     env_name: str = "cube-double-play-singletask-v0"
     agent: AgentConfig = AgentConfig()
     evaluation_mode: bool = False

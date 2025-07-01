@@ -1,15 +1,11 @@
-from copy import deepcopy
-from dataclasses import asdict
 import random
 
 import numpy as np
 
-from fql.agents.fql import FQLAgent
 from hpo.strategy import HpoStrategy
 from task.task import Task
 from trainer.config import ExperimentConfig, TrainerConfig
 from trainer.experiment import Experiment
-from utils.logger import Logger
 
 
 class Trainer:
@@ -18,15 +14,7 @@ class Trainer:
         self.strategy = strategy
         self.config = config
 
-        random.seed(self.config.seed)
-        np.random.seed(self.config.seed)
-
-        strategy.init(
-            [ExperimentConfig(alpha=alpha) for alpha in [0.03, 0.1, 0.3, 1, 3, 10]]
-        )
-
         self.experiments = {}
-
         self.current_step = 0
 
     def load(self, path: str) -> None:
@@ -50,31 +38,10 @@ class Trainer:
         pass
 
     def create_experiment(self, experiment_config) -> Experiment:
-        example_batch = self.task.sample("train", 1)
-
-        agent_config = deepcopy(self.config.agent)
-        for field, value in vars(experiment_config).items():
-            if hasattr(agent_config, field):
-                setattr(agent_config, field, value)
-        experiment_name = "_".join(
-            f"{field}_{value}" for field, value in vars(experiment_config).items()
-        )
-
-        agent = FQLAgent.create(
-            self.config.seed,
-            example_batch["observations"],
-            example_batch["actions"],
-            asdict(agent_config),
-        )
-
         self.experiments[experiment_config] = Experiment(
-            agent=agent,
-            task=self.task,
-            steps=self.config.steps,
-            log_interval=self.config.log_interval,
-            logger=Logger(
-                self.config.save_directory / self.config.env_name / experiment_name
-            ),
+            self.task,
+            self.config,
+            experiment_config,
         )
 
     def train(self) -> None:
@@ -83,7 +50,11 @@ class Trainer:
         """
         candidates = self.strategy.sample()
 
-        for config in candidates:
+        for config in (
+            self.strategy.init_population
+            if self.config.evaluation_mode
+            else candidates
+        ):
             if config not in self.experiments:
                 self.create_experiment(config)
 
@@ -124,12 +95,7 @@ class Trainer:
             candidates = new_candidates
 
         for config in candidates:
-            experiment_name = "_".join(
-                f"{field}_{value}" for field, value in vars(config).items()
-            )
-            self.experiments[config].save_agent(
-                self.config.save_directory / self.config.env_name / experiment_name
-            )
+            self.experiments[config].save_agent()
 
         for experiment in self.experiments.values():
             experiment.stop()
