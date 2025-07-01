@@ -1,10 +1,6 @@
-import random
-
-import numpy as np
-
 from hpo.strategy import HpoStrategy
 from task.task import Task
-from trainer.config import ExperimentConfig, TrainerConfig
+from trainer.config import TrainerConfig
 from trainer.experiment import Experiment
 
 
