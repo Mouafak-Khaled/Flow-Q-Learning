@@ -11,7 +11,7 @@ class HpoStrategy(ABC):
     from a population based on their performance history.
     """
 
-    def __init__(self, population: List[ExperimentConfig]) -> None:
+    def init(self, population: List[ExperimentConfig]) -> None:
         """
         Initialize the strategy with the given population of candidates.
 
