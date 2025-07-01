@@ -67,7 +67,7 @@ task = OfflineTaskWithRealEvaluations(config.buffer_size, config.env_name, confi
 random.seed(config.seed)
 np.random.seed(config.seed)
 
-strategy.init(
+strategy.populate(
     [
         ExperimentConfig(seed=seed)
         for seed in [8932, 8035, 2463, 4014, 4479, 8443, 2942, 9643]

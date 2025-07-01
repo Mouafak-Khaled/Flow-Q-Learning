@@ -17,7 +17,7 @@ task = OfflineTaskWithRealEvaluations(config.buffer_size, config.env_name, confi
 random.seed(config.seed)
 np.random.seed(config.seed)
 
-strategy.init([ExperimentConfig(alpha=alpha, normalize_q_loss=True) for alpha in [0.03, 0.1, 0.3, 1, 3, 10]])
+strategy.populate([ExperimentConfig(alpha=alpha, normalize_q_loss=True) for alpha in [0.03, 0.1, 0.3, 1, 3, 10]])
 
 trainer = Trainer(task, strategy, config)
 trainer.train()
