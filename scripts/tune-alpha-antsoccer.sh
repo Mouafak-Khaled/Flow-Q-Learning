@@ -10,4 +10,4 @@
 source ~/miniconda3/bin/activate
 conda activate fql
 
-python tune_alpha.py --env_name=antsoccer-arena-navigate-singletask-task4-v0 --agent.discount=0.995 --evaluation_mode
+python tune_alpha.py --env_name=antsoccer-arena-navigate-singletask-task4-v0 --agent.discount=0.995 --evaluation_mode --use_wandb
