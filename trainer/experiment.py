@@ -103,10 +103,6 @@ class Experiment:
     def save_agent(self):
         """
         Save the agent's state to a file.
-
-        Args:
-            save_directory: Directory where the agent will be saved.
-            step: Current training step.
         """
         save_dict = dict(
             agent=flax.serialization.to_state_dict(self.agent),
@@ -115,7 +111,7 @@ class Experiment:
             self.save_directory
             / self.env_name
             / self.experiment_name
-            / f"params_{self.current_step}.pkl"
+            / "params.pkl"
         )
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)

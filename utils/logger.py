@@ -49,14 +49,13 @@ class Logger:
         with open(save_directory / env_name / experiment_name / "config.yaml", "w") as f:
             yaml.dump(asdict(config), f)
 
-        if use_wandb:
-            self.wandb_run = wandb.init(
-                project="fql",
-                name=f"{env_name}_{experiment_name}",
-                config=asdict(config),
-                dir=save_directory,
-                reinit=True,
-            )
+        self.wandb_run = wandb.init(
+            project="fql",
+            name=f"{env_name}_{experiment_name}",
+            config=asdict(config),
+            dir=save_directory,
+            reinit='create_new',
+        ) if use_wandb else None
 
     def log(self, metrics: dict, step: int, group: Literal["train", "val", "eval"]):
         """
@@ -75,14 +74,8 @@ class Logger:
             self.eval_logger.log(metrics, step=step)
 
         if self.wandb_run:
-            with wandb.init(
-                project=self.wandb_run.project,
-                id=self.wandb_run.id,
-                resume="must",
-                reinit=True
-            ) as wandb_run:
-                prefixed_metrics = {f"{group}/{k}": v for k, v in metrics.items()}
-                wandb_run.log(prefixed_metrics, step=step)
+            prefixed_metrics = {f"{group}/{k}": v for k, v in metrics.items()}
+            self.wandb_run.log(prefixed_metrics, step=step)
 
     def close(self):
         """
@@ -91,3 +84,6 @@ class Logger:
         self.train_logger.close()
         self.val_logger.close()
         self.eval_logger.close()
+
+        if self.wandb_run:
+            self.wandb_run.finish()
