@@ -1,9 +1,9 @@
 from copy import deepcopy
 from dataclasses import asdict
 import random
-
+from pathlib import Path
 import numpy as np
-
+import pickle
 from fql.agents.fql import FQLAgent
 from hpo.strategy import HpoStrategy
 from task.task import Task
@@ -37,7 +37,29 @@ class Trainer:
             path (str): Path to the file containing the trainer state.
         """
         # Implement loading logic here
-        pass
+        load_dir = Path(path)
+
+        # Load strategy
+        self.strategy.load_strategy(load_dir)
+
+        # Load trainer metadata
+        with open(load_dir / "trainer_state.pkl", "rb") as f:
+            trainer_state = pickle.load(f)
+
+        self.current_step = trainer_state["current_step"]
+        experiment_configs = trainer_state["experiment_configs"]
+
+        # Restore RNG states
+        random.setstate(trainer_state["random_state"])
+        np.random.set_state(trainer_state["np_random_state"])
+
+        # Recreate and load experiments
+        for config in experiment_configs:
+            experiment_name = "_".join(f"{k}_{v}" for k, v in vars(config).items())
+            experiment_dir = load_dir / "experiments" / experiment_name
+
+            self.create_experiment(config)
+            self.experiments[config].load_agent(experiment_dir)
 
     def save(self, path: str) -> None:
         """
@@ -46,8 +68,27 @@ class Trainer:
         Args:
             path (str): Path to the file where the trainer state will be saved.
         """
-        # Implement saving logic here
-        pass
+        save_dir = Path(path)
+        save_dir.mkdir(parents=True, exist_ok=True)
+        self.strategy.save_strategy(save_dir, step=self.current_step)
+
+        # Save metadata including RNG states
+        trainer_state = {
+            "current_step": self.current_step,
+            "experiment_configs": list(self.experiments.keys()),
+            "random_state": random.getstate(),
+            "np_random_state": np.random.get_state(),
+        }
+
+        with open(save_dir / "trainer_state.pkl", "wb") as f:
+            pickle.dump(trainer_state, f)
+
+        # Save all experiment agents
+        for config, experiment in self.experiments.items():
+            experiment_name = "_".join(f"{k}_{v}" for k, v in vars(config).items())
+            experiment_dir = save_dir / "experiments" / experiment_name
+            experiment_dir.mkdir(parents=True, exist_ok=True)
+            experiment.save_agent(experiment_dir)
 
     def create_experiment(self, experiment_config) -> Experiment:
         example_batch = self.task.sample("train", 1)
