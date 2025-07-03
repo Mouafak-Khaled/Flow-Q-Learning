@@ -27,7 +27,6 @@ class AgentConfig:
 class ExperimentConfig:
     seed: int | None = None
     alpha: float | None = None
-    normalize_q_loss: bool | None = None
 
 
 @dataclass

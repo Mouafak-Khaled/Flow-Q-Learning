@@ -5,7 +5,7 @@ from ast import literal_eval
 from trainer.config import TrainerConfig, AgentConfig
 
 
-def get_args() -> argparse.Namespace:
+def get_argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Trainer and Agent Configuration")
 
     # TrainerConfig fields
@@ -127,7 +127,7 @@ def get_args() -> argparse.Namespace:
         help="Visual encoder name (e.g., impala_small).",
     )
 
-    return parser.parse_args()
+    return parser
 
 
 def build_config_from_args(args: argparse.Namespace) -> TrainerConfig:
