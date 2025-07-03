@@ -11,7 +11,6 @@ class Trainer:
         self.config = config
 
         self.experiments = {}
-        self.current_step = 0
 
     def load(self, path: str) -> None:
         """
@@ -54,16 +53,15 @@ class Trainer:
             if config not in self.experiments:
                 self.create_experiment(config)
 
-        while self.current_step < self.config.steps:
+        while len(candidates) > 0:
             # Train each experiment
             for config in (
                 self.strategy.init_population
                 if self.config.evaluation_mode
                 else candidates
             ):
-                self.experiments[config].train(self.config.eval_interval)
-
-            self.current_step += self.config.eval_interval
+                if self.experiments[config].train(self.config.eval_interval):
+                    self.experiments[config].save_agent()
 
             # Evaluate experiments
             for config in (
@@ -89,9 +87,6 @@ class Trainer:
 
             # Update candidates for the next iteration
             candidates = new_candidates
-
-        for config in candidates:
-            self.experiments[config].save_agent()
 
         for experiment in self.experiments.values():
             experiment.stop()
