@@ -13,5 +13,5 @@ conda activate fql
 python reproduce.py \
     --env_name=cube-single-play-singletask-task2-v0 --agent.alpha=300 \
     --save_directory=/work/dlclarge2/amriam-fql/exp/ --data_directory=/work/dlclarge2/amriam-fql/data/ \
-    --number_of_seeds=8 ---max_evaluations=200 \
+    --number_of_seeds=8 --max_evaluations=200 \
     --evaluation_mode --use_wandb
