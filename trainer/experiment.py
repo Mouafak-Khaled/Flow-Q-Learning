@@ -69,8 +69,18 @@ class Experiment:
         self.env_name = trainer_config.env_name
 
         self.current_step = 0
+        self.total_steps = trainer_config.steps
 
-    def train(self, num_steps: int) -> None:
+    def train(self, num_steps: int) -> bool:
+        """Trains the agent for a specified number of steps.
+        
+        Args:
+            num_steps (int): Number of training steps to perform.
+            
+        Returns:
+            bool: True if training completed, False if stopped before reaching total steps.
+        """
+        num_steps = min(num_steps, self.total_steps - self.current_step)
         for _ in tqdm(range(1, num_steps + 1), smoothing=0.1, dynamic_ncols=True):
             self.current_step += 1
             batch = self.task.sample("train", self.agent.config["batch_size"])
@@ -84,6 +94,8 @@ class Experiment:
                 _, val_info = self.agent.total_loss(val_batch, grad_params=None)
                 val_metrics = {f"validation/{k}": v for k, v in val_info.items()}
                 self.logger.log(val_metrics, step=self.current_step, group="val")
+        
+        return self.current_step == self.total_steps
 
     def evaluate(self, num_episodes: int = 50) -> float:
         eval_metrics = {}
