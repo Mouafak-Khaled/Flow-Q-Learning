@@ -19,6 +19,7 @@ class Experiment:
         task: Task,
         trainer_config: TrainerConfig,
         experiment_config: ExperimentConfig,
+        state_dict: dict | None = None,
     ):
         """
         Initialize the experiment with an agent and a task.
@@ -38,12 +39,6 @@ class Experiment:
         for field, value in tuned_hyperparams:
             if hasattr(agent_config, field):
                 setattr(agent_config, field, value)
-        self.experiment_name = "_".join(
-            f"{field}_{value}" for field, value in tuned_hyperparams
-        )
-        self.experiment_name = (
-            f"{self.experiment_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        )
 
         example_batch = task.sample("train", 1)
         self.agent = FQLAgent.create(
@@ -53,12 +48,31 @@ class Experiment:
             asdict(agent_config),
         )
 
+        if state_dict is None:
+            self.experiment_name = "_".join(
+                f"{field}_{value}" for field, value in tuned_hyperparams
+            )
+            self.experiment_name = (
+                f"{self.experiment_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            )
+
+            self.current_step = 0
+            self.running = True
+        else:
+            self.agent = flax.serialization.from_state_dict(
+                self.agent, state_dict["agent"]
+            )
+            self.experiment_name = state_dict["experiment_name"]
+            self.current_step = state_dict["current_step"]
+            self.running = state_dict["running"]
+
         self.logger = Logger(
             trainer_config.save_directory,
             trainer_config.env_name,
             self.experiment_name,
             agent_config,
             use_wandb=trainer_config.use_wandb,
+            state_dict=state_dict["logger"] if state_dict else None,
         )
 
         self.task = task
@@ -67,9 +81,20 @@ class Experiment:
         self.save_directory = trainer_config.save_directory
         self.env_name = trainer_config.env_name
 
-        self.current_step = 0
-        self.total_steps = trainer_config.steps
-        self.running = True
+    def state_dict(self):
+        """
+        Get the state dictionary of the experiment.
+        
+        Returns:
+            dict: State dictionary containing the experiment's state.
+        """
+        return {
+            "experiment_name": self.experiment_name,
+            "logger": self.logger.state_dict(),
+            "agent": flax.serialization.to_state_dict(self.agent),
+            "current_step": self.current_step,
+            "running": self.running,
+        }
 
     def train(self, num_steps: int) -> bool:
         """Trains the agent for a specified number of steps.
@@ -80,7 +105,7 @@ class Experiment:
         Returns:
             bool: True if training completed, False if stopped before reaching total steps.
         """
-        num_steps = min(num_steps, self.total_steps - self.current_step)
+        num_steps = min(num_steps, self.steps - self.current_step)
         for _ in tqdm(range(1, num_steps + 1), smoothing=0.1, dynamic_ncols=True):
             self.current_step += 1
             batch = self.task.sample("train", self.agent.config["batch_size"])
@@ -93,7 +118,7 @@ class Experiment:
                 _, val_info = self.agent.total_loss(val_batch, grad_params=None)
                 self.logger.log(val_info, step=self.current_step, group="val")
         
-        return self.current_step == self.total_steps
+        return self.current_step == self.steps
 
     def evaluate(self, num_episodes: int = 50) -> float:
         eval_info, _, _ = evaluate(

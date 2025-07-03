@@ -1,3 +1,7 @@
+import random
+
+import numpy as np
+
 from hpo.strategy import HpoStrategy
 from task.task import Task
 from trainer.config import TrainerConfig
@@ -5,88 +9,131 @@ from trainer.experiment import Experiment
 
 
 class Trainer:
-    def __init__(self, task: Task, strategy: HpoStrategy, config: TrainerConfig):
+    def __init__(
+        self,
+        task: Task,
+        strategy: HpoStrategy,
+        config: TrainerConfig,
+        state_dict: dict | None = None,
+    ):
         self.task = task
         self.strategy = strategy
         self.config = config
 
         self.experiments = {}
+        self.candidates = None
 
-    def load(self, path: str) -> None:
+        if state_dict is not None:
+            for experiment_config, experiment_state in state_dict["experiments"].items():
+                self.create_experiment(experiment_config, state_dict=experiment_state)
+            self.candidates = state_dict["candidates"]
+            self.untrained_candidates = state_dict["untrained_candidates"]
+            self.finished_candidates = state_dict["finished_candidates"]
+            random.setstate(state_dict["random_rng_state"])
+            np.random.set_state(state_dict["np_rng_state"])
+        else:
+            self.untrained_candidates = []
+            self.finished_candidates = []
+            self.candidates = self.strategy.sample()
+            
+            for config in (
+                self.strategy.init_population
+                if self.config.evaluation_mode
+                else self.candidates
+            ):
+                if config not in self.experiments:
+                    self.create_experiment(config)
+
+    def state_dict(self) -> dict:
         """
-        Load the trainer state from a file.
+        Get the state dictionary of the trainer.
 
-        Args:
-            path (str): Path to the file containing the trainer state.
+        Returns:
+            dict: State dictionary containing the experiments and candidates.
         """
-        # Implement loading logic here
-        pass
+        return {
+            "experiments": {
+                config: experiment.state_dict()
+                for config, experiment in self.experiments.items()
+            },
+            "candidates": self.candidates,
+            "random_rng_state": random.getstate(),
+            "np_rng_state": np.random.get_state(),
+            "finished_candidates": self.finished_candidates,
+            "untrained_candidates": self.untrained_candidates,
+        }
 
-    def save(self, path: str) -> None:
-        """
-        Save the trainer state to a file.
-
-        Args:
-            path (str): Path to the file where the trainer state will be saved.
-        """
-        # Implement saving logic here
-        pass
-
-    def create_experiment(self, experiment_config) -> Experiment:
+    def create_experiment(self, experiment_config, **kwargs) -> Experiment:
         self.experiments[experiment_config] = Experiment(
             self.task,
             self.config,
             experiment_config,
+            **kwargs
         )
 
-    def train(self) -> None:
+    def train(self, max_evaluations: int) -> None:
         """
         Train the agents using the specified task and strategy.
         """
-        candidates = self.strategy.sample()
-
-        for config in (
-            self.strategy.init_population
-            if self.config.evaluation_mode
-            else candidates
-        ):
-            if config not in self.experiments:
-                self.create_experiment(config)
-
-        while len(candidates) > 0:
-            # Train each experiment
-            for config in (
-                self.strategy.init_population
+        if len(self.untrained_candidates) > 0:
+                to_be_trained = self.untrained_candidates
+                self.untrained_candidates = []
+        else:
+            to_be_trained = (
+                [config for config in self.strategy.init_population if config not in self.finished_candidates]
                 if self.config.evaluation_mode
-                else candidates
-            ):
+                else self.candidates
+            )
+
+        while len(to_be_trained) > 0 and max_evaluations > 0:
+            # Train each experiment
+            finished_candidates = []
+            for config in to_be_trained:
+                if max_evaluations == 0:
+                    self.untrained_candidates.append(config)
+                    continue
                 if self.experiments[config].train(self.config.eval_interval):
                     self.experiments[config].save_agent()
+                    finished_candidates.append(config)
+                max_evaluations -= 1
+
+            if len(self.untrained_candidates) > 0:
+                break
+
+            to_be_trained = (
+                [config for config in self.strategy.init_population if config not in self.finished_candidates]
+                if self.config.evaluation_mode
+                else self.candidates
+            )
 
             # Evaluate experiments
-            for config in (
-                self.strategy.init_population
-                if self.config.evaluation_mode
-                else candidates
-            ):
+            for config in to_be_trained:
                 score = self.experiments[config].evaluate(self.config.eval_episodes)
                 self.strategy.update(self.experiments[config], score)
+
+            self.finished_candidates.extend(finished_candidates)
 
             # Sample new candidates based on the strategy
             new_candidates = self.strategy.sample()
 
-            # Stop experiments that are no longer candidates
+            # Create new experiments for new candidates
             for config in new_candidates:
                 if config not in self.experiments:
                     self.create_experiment(config)
 
             # Stop experiments that are no longer candidates
-            for config in candidates:
+            for config in self.candidates:
                 if config not in new_candidates:
                     self.experiments[config].stop(self.config.evaluation_mode)
 
             # Update candidates for the next iteration
-            candidates = new_candidates
+            self.candidates = new_candidates
+
+            to_be_trained = (
+                [config for config in self.strategy.init_population if config not in self.finished_candidates]
+                if self.config.evaluation_mode
+                else self.candidates
+            )
 
         for experiment in self.experiments.values():
             experiment.stop()

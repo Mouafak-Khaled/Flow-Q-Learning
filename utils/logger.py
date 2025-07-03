@@ -29,6 +29,7 @@ class Logger:
         experiment_name: str,
         config: AgentConfig,
         use_wandb: bool = False,
+        state_dict: dict | None = None,
     ):
         """
         Initialize the Logger.
@@ -49,13 +50,34 @@ class Logger:
         with open(save_directory / env_name / experiment_name / "config.yaml", "w") as f:
             yaml.dump(asdict(config), f)
 
-        self.wandb_run = wandb.init(
-            project="fql",
-            name=f"{env_name}_{experiment_name}",
-            config=asdict(config),
-            dir=save_directory,
-            reinit='create_new',
-        ) if use_wandb else None
+        if use_wandb:
+            kwargs = dict(
+                project="fql",
+                name=f"{env_name}_{experiment_name}",
+                config=asdict(config),
+                dir=save_directory,
+                reinit='create_new',
+                resume="allow"
+            )
+
+            if state_dict is not None:
+                kwargs["id"] = state_dict["wandb_run"]["id"]
+            self.wandb_run = wandb.init(**kwargs)
+        else:
+            self.wandb_run = None
+
+    def state_dict(self) -> dict:
+        """
+        Get the state dictionary of the logger.
+
+        Returns:
+            dict: State dictionary containing the required state.
+        """
+        return {
+            "wandb_run": {
+                "id": self.wandb_run.id,
+            } if self.wandb_run else None,
+        }
 
     def log(self, metrics: dict, step: int, group: Literal["train", "val", "eval"]):
         """

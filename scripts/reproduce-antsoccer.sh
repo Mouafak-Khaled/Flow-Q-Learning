@@ -13,4 +13,5 @@ conda activate fql
 python reproduce.py \
     --env_name=antsoccer-arena-navigate-singletask-task4-v0 --agent.discount=0.995 --agent.alpha=10 \
     --save_directory=/work/dlclarge2/amriam-fql/exp/ --data_directory=/work/dlclarge2/amriam-fql/data/ \
-    --number_of_seeds=8 --use_wandb
+    --number_of_seeds=8 ---max_evaluations=200 \
+    --evaluation_mode --use_wandb

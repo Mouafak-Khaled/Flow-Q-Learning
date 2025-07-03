@@ -9,12 +9,27 @@ class DiscardWorstStrategy(HpoStrategy):
     A hyperparameter optimization strategy that samples candidates based on the worst performance
     in the population. It removes candidates that have the worst performace.
     """
-
-    def __init__(self, fraction: float = 0.5) -> None:
+    def __init__(self, fraction: float = 0.5, state_dict: dict | None = None) -> None:
+        super().__init__(state_dict=state_dict)
         self.candidate_scores = defaultdict(float)
         self.fraction = fraction
-        self.population = []
-        self.init_population = []
+
+        if state_dict is not None:
+            self.candidate_scores = defaultdict(float, state_dict["candidate_scores"])
+            self.fraction = state_dict["fraction"]
+
+    def state_dict(self) -> dict:
+        """
+        Get the state dictionary of the strategy.
+
+        Returns:
+            dict: State dictionary containing the candidate scores and fraction.
+        """
+        return {
+            **super().state_dict(),
+            "candidate_scores": dict(self.candidate_scores),
+            "fraction": self.fraction,
+        }
 
     def update(self, candidate, performance: float) -> None:
         self.candidate_scores[candidate] = performance

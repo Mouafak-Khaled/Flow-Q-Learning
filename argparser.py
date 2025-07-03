@@ -148,9 +148,13 @@ def build_config_from_args(args: argparse.Namespace) -> TrainerConfig:
     trainer_kwargs["data_directory"] = Path(trainer_kwargs["data_directory"])
 
     # Build AgentConfig
-    agent_config = AgentConfig(**agent_kwargs)
+    agent_config_fields = set(AgentConfig.__dataclass_fields__.keys())
+    filtered_agent_kwargs = {k: v for k, v in agent_kwargs.items() if k in agent_config_fields}
+    agent_config = AgentConfig(**filtered_agent_kwargs)
 
     # Build TrainerConfig with agent inside
-    trainer_config = TrainerConfig(**trainer_kwargs, agent=agent_config)
+    trainer_config_fields = set(TrainerConfig.__dataclass_fields__.keys())
+    filtered_trainer_kwargs = {k: v for k, v in trainer_kwargs.items() if k in trainer_config_fields}
+    trainer_config = TrainerConfig(**filtered_trainer_kwargs, agent=agent_config)
 
     return trainer_config
