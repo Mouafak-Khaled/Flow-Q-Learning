@@ -36,13 +36,8 @@ class Trainer:
             self.finished_candidates = []
             self.candidates = self.strategy.sample()
             
-            for config in (
-                self.strategy.init_population
-                if self.config.evaluation_mode
-                else self.candidates
-            ):
-                if config not in self.experiments:
-                    self.create_experiment(config)
+            for config in self.candidates:
+                self.create_experiment(config)
 
     def state_dict(self) -> dict:
         """
@@ -59,8 +54,8 @@ class Trainer:
             "candidates": self.candidates,
             "random_rng_state": random.getstate(),
             "np_rng_state": np.random.get_state(),
-            "finished_candidates": self.finished_candidates,
             "untrained_candidates": self.untrained_candidates,
+            "finished_candidates": self.finished_candidates
         }
 
     def create_experiment(self, experiment_config, **kwargs) -> Experiment:
@@ -75,43 +70,32 @@ class Trainer:
         """
         Train the agents using the specified task and strategy.
         """
-        if len(self.untrained_candidates) > 0:
-                to_be_trained = self.untrained_candidates
-                self.untrained_candidates = []
-        else:
-            to_be_trained = (
-                [config for config in self.strategy.init_population if config not in self.finished_candidates]
-                if self.config.evaluation_mode
-                else self.candidates
-            )
-
-        while len(to_be_trained) > 0 and max_evaluations > 0:
+        while max_evaluations > 0:
             # Train each experiment
-            finished_candidates = []
-            for config in to_be_trained:
+            untrained_candidates = []
+            for config in (self.untrained_candidates if len(self.untrained_candidates) > 0 else self.candidates):
                 if max_evaluations == 0:
-                    self.untrained_candidates.append(config)
+                    untrained_candidates.append(config)
                     continue
                 if self.experiments[config].train(self.config.eval_interval):
                     self.experiments[config].save_agent()
-                    finished_candidates.append(config)
+                    self.finished_candidates.append(config)
                 max_evaluations -= 1
 
-            if len(self.untrained_candidates) > 0:
+            if len(untrained_candidates) > 0:
+                self.untrained_candidates = untrained_candidates
                 break
 
-            to_be_trained = (
-                [config for config in self.strategy.init_population if config not in self.finished_candidates]
-                if self.config.evaluation_mode
-                else self.candidates
-            )
-
             # Evaluate experiments
-            for config in to_be_trained:
+            for config in self.candidates:
                 score = self.experiments[config].evaluate(self.config.eval_episodes)
                 self.strategy.update(self.experiments[config], score)
 
-            self.finished_candidates.extend(finished_candidates)
+            unfinished_candidates = [
+                config for config in self.candidates if config not in self.finished_candidates
+            ]
+            if len(unfinished_candidates) == 0:
+                break
 
             # Sample new candidates based on the strategy
             new_candidates = self.strategy.sample()
@@ -124,16 +108,10 @@ class Trainer:
             # Stop experiments that are no longer candidates
             for config in self.candidates:
                 if config not in new_candidates:
-                    self.experiments[config].stop(self.config.evaluation_mode)
+                    self.experiments[config].stop()
 
             # Update candidates for the next iteration
             self.candidates = new_candidates
-
-            to_be_trained = (
-                [config for config in self.strategy.init_population if config not in self.finished_candidates]
-                if self.config.evaluation_mode
-                else self.candidates
-            )
 
         for experiment in self.experiments.values():
             experiment.stop()

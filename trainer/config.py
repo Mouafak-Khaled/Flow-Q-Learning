@@ -40,6 +40,5 @@ class TrainerConfig:
     use_wandb: bool = False
     env_name: str = "cube-double-play-singletask-v0"
     agent: AgentConfig = AgentConfig()
-    evaluation_mode: bool = False
     eval_episodes: int = 50
     buffer_size: int = 2000000

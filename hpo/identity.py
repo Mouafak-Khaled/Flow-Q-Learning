@@ -4,7 +4,7 @@ from hpo.strategy import HpoStrategy
 from trainer.config import ExperimentConfig
 
 
-class IdentityStrategy(HpoStrategy):
+class Identity(HpoStrategy):
     """
     A strategy that returns the entire population without any modifications.
     """

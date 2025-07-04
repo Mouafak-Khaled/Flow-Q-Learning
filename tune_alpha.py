@@ -5,7 +5,8 @@ import random
 import numpy as np
 
 from argparser import build_config_from_args, get_argparser
-from hpo.identity import IdentityStrategy
+from hpo.identity import Identity
+from hpo.strategy_evaluator import HpoStrategyEvaluator
 from task.offline_task_real import OfflineTaskWithRealEvaluations
 from trainer.config import ExperimentConfig
 from trainer.trainer import Trainer
@@ -39,12 +40,16 @@ config = build_config_from_args(args)
 random.seed(config.seed)
 np.random.seed(config.seed)
 
-alpha_values = np.logspace(np.log10(3), np.log10(1000), num=args.number_of_alphas).tolist()
+alpha_values = np.logspace(
+    np.log10(3), np.log10(1000), num=args.number_of_alphas
+).tolist()
 seeds = random.sample(range(10000), args.number_of_seeds)
 
 combinations = list(itertools.product(alpha_values, seeds))
 
-experiment_configs = [ExperimentConfig(seed=seed, alpha=alpha) for alpha, seed in combinations]
+experiment_configs = [
+    ExperimentConfig(seed=seed, alpha=alpha) for alpha, seed in combinations
+]
 
 # load checkpoint if available
 state_dict = {}
@@ -54,11 +59,19 @@ if checkpoint_path.exists():
         state_dict = pickle.load(f)
 
 # create trainer
-strategy = IdentityStrategy(state_dict=state_dict.get("strategy"))
+# strategy = HpoStrategyEvaluator(
+#     population=experiment_configs,
+#     total_evaluations=config.steps // config.eval_interval,
+#     state_dict=state_dict.get("strategy"),
+# )
+strategy = Identity(
+    population=experiment_configs,
+    total_evaluations=0,
+    state_dict=state_dict.get("strategy"),
+)
 task = OfflineTaskWithRealEvaluations(
     config.buffer_size, config.env_name, config.data_directory
 )
-strategy.populate(experiment_configs)
 trainer = Trainer(task, strategy, config, state_dict=state_dict.get("trainer"))
 
 # train the agents

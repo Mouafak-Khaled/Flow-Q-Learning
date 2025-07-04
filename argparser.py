@@ -40,13 +40,6 @@ def get_argparser() -> argparse.ArgumentParser:
         help="Environment (dataset) name.",
     )
     parser.add_argument(
-        "--evaluation_mode",
-        action="store_true",
-        help="Run in strategy evaluation mode. This would continue training " \
-        "the agents even after being discarded by strategy, but will note down " \
-        "the time when they were discarded.",
-    )
-    parser.add_argument(
         "--eval_episodes", type=int, default=50, help="Number of evaluation episodes."
     )
     parser.add_argument(

@@ -13,5 +13,4 @@ conda activate fql
 python tune_alpha.py \
     --env_name=antsoccer-arena-navigate-singletask-task4-v0 --agent.discount=0.995 \
     --save_directory=/work/dlclarge2/amriam-fql/exp/ --data_directory=/work/dlclarge2/amriam-fql/data/ \
-    --number_of_seeds=2 --number_of_alphas=10 --max_evaluations=200 \
-    --evaluation_mode --use_wandb
+    --number_of_seeds=2 --number_of_alphas=10 --max_evaluations=200 --use_wandb

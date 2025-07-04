@@ -57,14 +57,12 @@ class Experiment:
             )
 
             self.current_step = 0
-            self.running = True
         else:
             self.agent = flax.serialization.from_state_dict(
                 self.agent, state_dict["agent"]
             )
             self.experiment_name = state_dict["experiment_name"]
             self.current_step = state_dict["current_step"]
-            self.running = state_dict["running"]
 
         self.logger = Logger(
             trainer_config.save_directory,
@@ -93,7 +91,6 @@ class Experiment:
             "logger": self.logger.state_dict(),
             "agent": flax.serialization.to_state_dict(self.agent),
             "current_step": self.current_step,
-            "running": self.running,
         }
 
     def train(self, num_steps: int) -> bool:
@@ -129,11 +126,7 @@ class Experiment:
         )
 
         if self.logger:
-            self.logger.log(
-                {**eval_info, "running": self.running},
-                step=self.current_step,
-                group="eval",
-            )
+            self.logger.log(eval_info, step=self.current_step, group="eval")
 
         return eval_info["success"]
 
@@ -153,10 +146,8 @@ class Experiment:
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)
 
-    def stop(self, eval_mode: bool = False):
+    def stop(self):
         """
         Stop the experiment.
         """
-        self.running = False
-        if self.logger and not eval_mode:
-            self.logger.close()
+        self.logger.close()
