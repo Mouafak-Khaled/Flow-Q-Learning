@@ -22,7 +22,7 @@ class SuccessiveHalving(HpoStrategy):
 
         if state_dict is not None:
             self.candidate_scores = state_dict["candidate_scores"]
-            self.performed_evaluations = len(self.candidate_scores)
+            self.performed_evaluations = state_dict["performed_evaluations"]
 
     def state_dict(self) -> dict:
         """
@@ -34,6 +34,7 @@ class SuccessiveHalving(HpoStrategy):
         return {
             **super().state_dict(),
             "candidate_scores": dict(self.candidate_scores),
+            "performed_evaluations": self.performed_evaluations,
         }
 
     def update(self, candidate: ExperimentConfig, performance: float) -> None:
@@ -48,7 +49,7 @@ class SuccessiveHalving(HpoStrategy):
         if len(self.population) <= 1:
             return self.population
 
-        new_length = max(1, int(len(self.population) * self.fraction))
+        new_length = max(1, int(len(self.population) - len(self.population) * self.fraction))
 
         sorted_population = sorted(
             self.candidate_scores.items(), key=lambda x: x[1], reverse=True
@@ -63,24 +64,27 @@ class SuccessiveHalving(HpoStrategy):
         Compute evaluation milestones at which to halve the population.
         """
         N = len(self.population)
-        f = self.fraction
+        eta = 1 / self.fraction
         T = self.total_evaluations
+        R = int(np.floor(np.log(N) / np.log(eta)))
 
-        R = int(np.floor(np.log(N) / np.log(1 / f)))
-        
         milestones = []
         for r in range(R):
-            # This is the per-config budget for this round
-            budget = int(T * f ** (r - (R - 1)))
+            budget = int(T * eta ** -r)
             milestones.append(budget)
-        
         return milestones
+
 
 
 class SuccessiveHalvingWithHistory(HpoStrategy):
 
     def __init__(
-            self, population: List[ExperimentConfig], total_evaluations: int, fraction: float = 0.5, state_dict: dict | None = None, history_length: int = 3
+            self,
+            population: List[ExperimentConfig],
+            total_evaluations: int,
+            fraction: float = 0.5,
+            history_length: int = 3,
+            state_dict: dict | None = None
     ) -> None:
         """
         Initialize the SuccessiveHalvingWithHistory strategy.
@@ -99,14 +103,11 @@ class SuccessiveHalvingWithHistory(HpoStrategy):
         self.candidate_scores = defaultdict(list)
         self.performed_evaluations = 0
 
-        # Flag to indicate if pruning has just occurred in the current sample call
-        self._pruning_just_occurred = False
-
         self.halving_milestones = self._compute_halving_milestones()
 
         if state_dict is not None:
             self.candidate_scores = state_dict["candidate_scores"]
-            self.performed_evaluations = len(self.candidate_scores)
+            self.performed_evaluations = state_dict["performed_evaluations"]
 
     def state_dict(self) -> dict:
         """
@@ -118,6 +119,7 @@ class SuccessiveHalvingWithHistory(HpoStrategy):
         return {
             **super().state_dict(),
             "candidate_scores": dict(self.candidate_scores),
+            "performed_evaluations": self.performed_evaluations,
         }
 
     def update(self, candidate: ExperimentConfig, performance: float) -> None:
@@ -144,15 +146,20 @@ class SuccessiveHalvingWithHistory(HpoStrategy):
         """
         self.performed_evaluations += 1
 
-        if self.performed_evaluations not in self.halving_milestones:
+        if self.performed_evaluations not in self.halving_milestones or self.performed_evaluations < self.history_length:
             return self.population
+
 
         if len(self.population) <= 1:
             return self.population
 
         new_length = max(1,  int(len(self.population) - len(self.population) * self.fraction))
 
-        average_scores = {key: sum(values) / len(values) for key, values in self.candidate_scores.items() if values}
+        average_scores = {
+            key: sum(values[-self.history_length:]) / self.history_length
+            for key, values in self.candidate_scores.items()
+            if values
+        }
 
         sorted_population = sorted(
             average_scores.items(), key=lambda x: x[1], reverse=True
@@ -174,14 +181,13 @@ class SuccessiveHalvingWithHistory(HpoStrategy):
             List[int]: A list of evaluation counts where halving will be triggered.
         """
         N = len(self.population)
-        f = self.fraction
+        eta = 1 / self.fraction
         T = self.total_evaluations
-        h = self.history_length
-        R = int(np.floor(np.log(N) / np.log(1 / f)))
+        R = int(np.floor(np.log(N) / np.log(eta)))
 
         milestones = []
         for r in range(R):
-            budget = int(T * f ** (r - (R - 1))) + h
+            budget = int(T * eta ** -r)
             milestones.append(budget)
         return milestones
 
