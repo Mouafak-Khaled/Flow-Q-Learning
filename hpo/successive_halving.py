@@ -76,7 +76,7 @@ class SuccessiveHalving(HpoStrategy):
 
 
 
-class SuccessiveHalvingWithHistory(HpoStrategy):
+class SuccessiveHalvingWithHistory(SuccessiveHalving):
 
     def __init__(
             self,
@@ -96,31 +96,10 @@ class SuccessiveHalvingWithHistory(HpoStrategy):
             state_dict (dict | None): Optional dictionary to restore internal state.
             history_length (int): Number of evaluations to accumulate before pruning can start.
         """
-        super().__init__(population, total_evaluations)
-        self.fraction = fraction
+        super().__init__(population, total_evaluations, fraction, state_dict)
         self.history_length = history_length
-
         self.candidate_scores = defaultdict(list)
-        self.performed_evaluations = 0
 
-        self.halving_milestones = self._compute_halving_milestones()
-
-        if state_dict is not None:
-            self.candidate_scores = state_dict["candidate_scores"]
-            self.performed_evaluations = state_dict["performed_evaluations"]
-
-    def state_dict(self) -> dict:
-        """
-        Return the current internal state of the strategy.
-
-        Returns:
-            dict: Dictionary containing the population and candidate score history.
-        """
-        return {
-            **super().state_dict(),
-            "candidate_scores": dict(self.candidate_scores),
-            "performed_evaluations": self.performed_evaluations,
-        }
 
     def update(self, candidate: ExperimentConfig, performance: float) -> None:
         """
@@ -170,25 +149,5 @@ class SuccessiveHalvingWithHistory(HpoStrategy):
         self.candidate_scores = defaultdict(list, best_candidates_with_scores)
         return self.population
 
-    def _compute_halving_milestones(self) -> List[int]:
-        """
-        Compute the evaluation counts at which pruning should occur.
-
-        The milestones are calculated based on the total number of evaluations,
-        the population size, the pruning fraction, and the required history length.
-
-        Returns:
-            List[int]: A list of evaluation counts where halving will be triggered.
-        """
-        N = len(self.population)
-        eta = 1 / self.fraction
-        T = self.total_evaluations
-        R = int(np.floor(np.log(N) / np.log(eta)))
-
-        milestones = []
-        for r in range(R):
-            budget = int(T * eta ** -r)
-            milestones.append(budget)
-        return milestones
 
 
