@@ -24,7 +24,7 @@ class HpoStrategyEvaluator(HpoStrategy):
     ):
         super().__init__(population=population, state_dict=state_dict)
         log_path = save_directory / env_name / "strategies_stopping_times.csv"
-        self.logger = CsvLogger(log_path, header=[ "strategy_name", "experiment_name", "stopped_at"])
+        self.logger = CsvLogger(log_path)
 
         STRATEGIES = {
             "successive_halving_0.5": (
@@ -94,8 +94,8 @@ class HpoStrategyEvaluator(HpoStrategy):
             for candidate in old_population:
                 if candidate not in new_population:
                     self.logger.log({
-                        "evaluation_step": self.performed_evaluations,
                         "strategy_name": name,
-                        "stopped_at_evaluation": self.performed_evaluations
+                        "experiment_name": candidate,
+                        "stopped_at": self.performed_evaluations
                     })
         return self.population
