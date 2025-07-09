@@ -1,4 +1,3 @@
-from collections import defaultdict
 from typing import List
 
 from hpo.strategy import HpoStrategy
@@ -22,8 +21,10 @@ class HpoStrategyEvaluator(HpoStrategy):
         state_dict: dict | None = None,
     ):
         super().__init__(population=population, state_dict=state_dict)
-        log_path = save_directory / env_name / "strategies_stopping_times.csv"
-        self.logger = CsvLogger(log_path)
+        self.logger = CsvLogger(
+            save_directory / env_name / "strategies_stopping_times.csv",
+            resume=state_dict is not None,
+        )
 
         STRATEGIES = {
             "successive_halving_0.5": (
@@ -92,9 +93,20 @@ class HpoStrategyEvaluator(HpoStrategy):
 
             for candidate in old_population:
                 if candidate not in new_population:
-                    self.logger.log({
-                        "strategy_name": name,
-                        "experiment_name": candidate,
-                        "stopped_at": self.performed_evaluations
-                    })
+                    tuned_hyperparams = [
+                        (field, value)
+                        for field, value in vars(candidate).items()
+                        if value is not None
+                    ]
+                    experiment_name = "_".join(
+                        f"{field}_{value}" for field, value in tuned_hyperparams
+                    )
+
+                    self.logger.log(
+                        {
+                            "strategy_name": name,
+                            "experiment_name": experiment_name,
+                            "stopped_at": self.performed_evaluations,
+                        }
+                    )
         return self.population
