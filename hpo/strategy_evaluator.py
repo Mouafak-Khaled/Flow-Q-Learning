@@ -4,6 +4,8 @@ from typing import List
 from hpo.strategy import HpoStrategy
 from hpo.successive_halving import SuccessiveHalving
 from trainer.config import ExperimentConfig
+from fql.utils.log_utils import CsvLogger
+from pathlib import Path
 
 
 class HpoStrategyEvaluator(HpoStrategy):
@@ -15,9 +17,14 @@ class HpoStrategyEvaluator(HpoStrategy):
         self,
         population: List[ExperimentConfig],
         total_evaluations: int,
+        save_directory: Path,
+        env_name: str,
+        experiment_name: str,
         state_dict: dict | None = None,
     ):
         super().__init__(population=population, state_dict=state_dict)
+        log_path = save_directory / env_name / experiment_name / "evaluator.csv"
+        self.logger = CsvLogger(log_path, header=["evaluation_step", "strategy_name", "stopped_at_evaluation"])
 
         STRATEGIES = {
             "successive_halving_0.5": (
@@ -70,7 +77,7 @@ class HpoStrategyEvaluator(HpoStrategy):
             candidate (ExperimentConfig): The candidate for which to update the performance history.
             performance (float): The performance score of the candidate.
         """
-        for strategy in self.strategies.values():
+        for name, strategy in self.strategies.items():
             if candidate in strategy.population:
                 strategy.update(candidate, performance)
 
@@ -89,6 +96,11 @@ class HpoStrategyEvaluator(HpoStrategy):
 
             for candidate in new_population:
                 if candidate not in old_population:
-                    self.stopped_at[name] = self.performed_evaluations
-
+                    if self.stopped_at[name] == 0:
+                        self.stopped_at[name] = self.performed_evaluations
+                        self.logger.log({
+                            "evaluation_step": self.performed_evaluations,
+                            "strategy_name": name,
+                            "stopped_at_evaluation": self.performed_evaluations
+                        })
         return self.population
