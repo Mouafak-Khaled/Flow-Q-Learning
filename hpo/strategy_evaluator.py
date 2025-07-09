@@ -19,7 +19,6 @@ class HpoStrategyEvaluator(HpoStrategy):
         total_evaluations: int,
         save_directory: Path,
         env_name: str,
-        experiment_name: str,
         state_dict: dict | None = None,
     ):
         super().__init__(population=population, state_dict=state_dict)
