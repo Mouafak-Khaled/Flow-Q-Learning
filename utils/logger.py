@@ -12,18 +12,19 @@ from trainer.config import AgentConfig
 class CsvLogger:
     """CSV logger for logging metrics to a CSV file."""
 
-    def __init__(self, path):
-        self.path = path
+    def __init__(self, path, resume=False):
         self.header = None
-        self.file = None
         self.disallowed_types = (wandb.Image, wandb.Video, wandb.Histogram)
+
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        if resume:
+            self.file = open(path, 'a')
+        else:
+            self.file = open(path, 'w')
 
     def log(self, row, step=None):
         if step is not None:
             row['step'] = step
-    
-        if self.file is None:
-            self.file = open(self.path, 'w')
 
         if self.header is None:
             self.header = [k for k, v in row.items() if not isinstance(v, self.disallowed_types)]
@@ -70,11 +71,10 @@ class Logger:
             config (AgentConfig): Configuration for the agent.
             use_wandb (bool): Whether to enable wandb logging.
         """
-        os.makedirs(save_directory / env_name / experiment_name, exist_ok=True)
-
-        self.train_logger = CsvLogger(save_directory / env_name / experiment_name / "train.csv")
-        self.val_logger = CsvLogger(save_directory / env_name / experiment_name / "val.csv")
-        self.eval_logger = CsvLogger(save_directory / env_name / experiment_name / "eval.csv")
+        resume = state_dict is not None
+        self.train_logger = CsvLogger(save_directory / env_name / experiment_name / "train.csv", resume=resume)
+        self.val_logger = CsvLogger(save_directory / env_name / experiment_name / "val.csv", resume=resume)
+        self.eval_logger = CsvLogger(save_directory / env_name / experiment_name / "eval.csv", resume=resume)
 
         with open(save_directory / env_name / experiment_name / "config.yaml", "w") as f:
             yaml.dump(asdict(config), f)
