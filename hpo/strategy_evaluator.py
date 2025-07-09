@@ -1,9 +1,10 @@
-from collections import defaultdict
 from typing import List
 
 from hpo.strategy import HpoStrategy
 from hpo.successive_halving import SuccessiveHalving
 from trainer.config import ExperimentConfig
+from utils.logger import CsvLogger
+from pathlib import Path
 
 
 class HpoStrategyEvaluator(HpoStrategy):
@@ -15,9 +16,15 @@ class HpoStrategyEvaluator(HpoStrategy):
         self,
         population: List[ExperimentConfig],
         total_evaluations: int,
+        save_directory: Path,
+        env_name: str,
         state_dict: dict | None = None,
     ):
         super().__init__(population=population, state_dict=state_dict)
+        self.logger = CsvLogger(
+            save_directory / env_name / "strategies_stopping_times.csv",
+            resume=state_dict is not None,
+        )
 
         STRATEGIES = {
             "successive_halving_0.5": (
@@ -32,7 +39,6 @@ class HpoStrategyEvaluator(HpoStrategy):
 
         if state_dict is not None:
             self.performed_evaluations = state_dict["performed_evaluations"]
-            self.stopped_at = defaultdict(int, state_dict["stopped_at"])
             self.strategies = {
                 name: STRATEGIES[name][0](**STRATEGIES[name][1], state_dict=state_dict)
                 for name, state_dict in state_dict["strategies"].items()
@@ -43,7 +49,6 @@ class HpoStrategyEvaluator(HpoStrategy):
                 name: strategy_class(**kwargs)
                 for name, (strategy_class, kwargs) in STRATEGIES.items()
             }
-            self.stopped_at = defaultdict(int)
 
     def state_dict(self) -> dict:
         """
@@ -54,7 +59,6 @@ class HpoStrategyEvaluator(HpoStrategy):
         """
         return {
             **super().state_dict(),
-            "stopped_at": dict(self.stopped_at),
             "strategies": {
                 name: strategy.state_dict()
                 for name, strategy in self.strategies.items()
@@ -87,8 +91,22 @@ class HpoStrategyEvaluator(HpoStrategy):
             old_population = strategy.population
             new_population = strategy.sample()
 
-            for candidate in new_population:
-                if candidate not in old_population:
-                    self.stopped_at[name] = self.performed_evaluations
+            for candidate in old_population:
+                if candidate not in new_population:
+                    tuned_hyperparams = [
+                        (field, value)
+                        for field, value in vars(candidate).items()
+                        if value is not None
+                    ]
+                    experiment_name = "_".join(
+                        f"{field}_{value}" for field, value in tuned_hyperparams
+                    )
 
+                    self.logger.log(
+                        {
+                            "strategy_name": name,
+                            "experiment_name": experiment_name,
+                            "stopped_at": self.performed_evaluations,
+                        }
+                    )
         return self.population

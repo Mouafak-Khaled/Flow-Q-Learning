@@ -63,6 +63,8 @@ if checkpoint_path.exists():
 #     population=experiment_configs,
 #     total_evaluations=config.steps // config.eval_interval,
 #     state_dict=state_dict.get("strategy"),
+#     save_directory=config.save_directory,
+#     env_name=config.env_name
 # )
 strategy = Identity(
     population=experiment_configs,
