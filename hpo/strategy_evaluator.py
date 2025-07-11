@@ -27,6 +27,15 @@ class HpoStrategyEvaluator(HpoStrategy):
         )
 
         STRATEGIES = {
+            "successive_halving_0.25": (
+                SuccessiveHalving,
+                {
+                    "population": population,
+                    "total_evaluations": total_evaluations,
+                    "fraction": 0.25,
+                },
+            ),
+
             "successive_halving_0.5":(
                 SuccessiveHalving,
                 {
@@ -36,8 +45,17 @@ class HpoStrategyEvaluator(HpoStrategy):
                 },
             ),
 
-            "successive_halving_0.25": (
+            "successive_halving_0.75":(
                 SuccessiveHalving,
+                {
+                    "population": population,
+                    "total_evaluations": total_evaluations,
+                    "fraction": 0.75,
+                },
+            ),
+
+            "successive_halving_with_history_0.25": (
+                SuccessiveHalvingWithHistory,
                 {
                     "population": population,
                     "total_evaluations": total_evaluations,
@@ -51,6 +69,15 @@ class HpoStrategyEvaluator(HpoStrategy):
                     "population": population,
                     "total_evaluations": total_evaluations,
                     "fraction": 0.5,
+                },
+            ),
+
+            "successive_halving_with_history_0.75": (
+                SuccessiveHalvingWithHistory,
+                {
+                    "population": population,
+                    "total_evaluations": total_evaluations,
+                    "fraction": 0.75,
                 },
             ),
         }
