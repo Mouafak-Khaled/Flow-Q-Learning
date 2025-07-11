@@ -1,7 +1,7 @@
 from typing import List
 
 from hpo.strategy import HpoStrategy
-from hpo.successive_halving import SuccessiveHalving
+from hpo.successive_halving import SuccessiveHalving, SuccessiveHalvingWithHistory
 from trainer.config import ExperimentConfig
 from utils.logger import CsvLogger
 from pathlib import Path
@@ -20,15 +20,33 @@ class HpoStrategyEvaluator(HpoStrategy):
         env_name: str,
         state_dict: dict | None = None,
     ):
-        super().__init__(population=population, state_dict=state_dict)
+        super().__init__(population=population, total_evaluations=total_evaluations, state_dict=state_dict)
         self.logger = CsvLogger(
             save_directory / env_name / "strategies_stopping_times.csv",
             resume=state_dict is not None,
         )
 
         STRATEGIES = {
-            "successive_halving_0.5": (
+            "successive_halving_0.5":(
                 SuccessiveHalving,
+                {
+                    "population": population,
+                    "total_evaluations": total_evaluations,
+                    "fraction": 0.5,
+                },
+            ),
+
+            "successive_halving_0.25": (
+                SuccessiveHalving,
+                {
+                    "population": population,
+                    "total_evaluations": total_evaluations,
+                    "fraction": 0.25,
+                },
+            ),
+
+            "successive_halving_with_history_0.5": (
+                SuccessiveHalvingWithHistory,
                 {
                     "population": population,
                     "total_evaluations": total_evaluations,
