@@ -59,18 +59,18 @@ if checkpoint_path.exists():
         state_dict = pickle.load(f)
 
 # create trainer
-# strategy = HpoStrategyEvaluator(
-#     population=experiment_configs,
-#     total_evaluations=config.steps // config.eval_interval,
-#     state_dict=state_dict.get("strategy"),
-#     save_directory=config.save_directory,
-#     env_name=config.env_name
-# )
-strategy = Identity(
+strategy = HpoStrategyEvaluator(
     population=experiment_configs,
-    total_evaluations=0,
+    total_evaluations=config.steps // config.eval_interval,
+    save_directory=config.save_directory,
+    env_name=config.env_name,
     state_dict=state_dict.get("strategy"),
 )
+# strategy = Identity(
+#     population=experiment_configs,
+#     total_evaluations=0,
+#     state_dict=state_dict.get("strategy"),
+# )
 task = OfflineTaskWithRealEvaluations(
     config.buffer_size, config.env_name, config.data_directory
 )
