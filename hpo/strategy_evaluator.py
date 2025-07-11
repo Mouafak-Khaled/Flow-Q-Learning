@@ -54,30 +54,93 @@ class HpoStrategyEvaluator(HpoStrategy):
                 },
             ),
 
-            "successive_halving_with_history_0.25": (
+            "successive_halving_0.25_with_history_2": (
                 SuccessiveHalvingWithHistory,
                 {
                     "population": population,
                     "total_evaluations": total_evaluations,
                     "fraction": 0.25,
+                    "history_length": 2,
                 },
             ),
 
-            "successive_halving_with_history_0.5": (
+            "successive_halving_0.5_with_history_2": (
                 SuccessiveHalvingWithHistory,
                 {
                     "population": population,
                     "total_evaluations": total_evaluations,
                     "fraction": 0.5,
+                    "history_length": 2,
                 },
             ),
 
-            "successive_halving_with_history_0.75": (
+            "successive_halving_0.75_with_history_2": (
                 SuccessiveHalvingWithHistory,
                 {
                     "population": population,
                     "total_evaluations": total_evaluations,
                     "fraction": 0.75,
+                    "history_length": 2,
+                },
+            ),
+
+            "successive_halving_0.25_with_history_4": (
+                SuccessiveHalvingWithHistory,
+                {
+                    "population": population,
+                    "total_evaluations": total_evaluations,
+                    "fraction": 0.25,
+                    "history_length": 4,
+                },
+            ),
+
+            "successive_halving_0.5_with_history_4": (
+                SuccessiveHalvingWithHistory,
+                {
+                    "population": population,
+                    "total_evaluations": total_evaluations,
+                    "fraction": 0.5,
+                    "history_length": 4,
+                },
+            ),
+
+            "successive_halving_0.75_with_history_4": (
+                SuccessiveHalvingWithHistory,
+                {
+                    "population": population,
+                    "total_evaluations": total_evaluations,
+                    "fraction": 0.75,
+                    "history_length": 4,
+                },
+            ),
+
+            "successive_halving_0.25_with_history_8": (
+                SuccessiveHalvingWithHistory,
+                {
+                    "population": population,
+                    "total_evaluations": total_evaluations,
+                    "fraction": 0.25,
+                    "history_length": 8,
+                },
+            ),
+
+            "successive_halving_0.5_with_history_8": (
+                SuccessiveHalvingWithHistory,
+                {
+                    "population": population,
+                    "total_evaluations": total_evaluations,
+                    "fraction": 0.5,
+                    "history_length": 8,
+                },
+            ),
+
+            "successive_halving_0.75_with_history_8": (
+                SuccessiveHalvingWithHistory,
+                {
+                    "population": population,
+                    "total_evaluations": total_evaluations,
+                    "fraction": 0.75,
+                    "history_length": 8,
                 },
             ),
         }
