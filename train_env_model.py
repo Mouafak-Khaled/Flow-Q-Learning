@@ -1,6 +1,9 @@
-import ogbench
+import os
 
+import flax
+import ogbench
 import wandb
+
 from envmodel.BaselineEnvModel import BaselineEnvModel
 from envmodel.trainer import Trainer
 from fql.utils.datasets import Dataset
@@ -28,7 +31,9 @@ act_sample = sample_batch["actions"]
 # --- Model ---
 if model == "baseline":
     env_model = BaselineEnvModel(
-        obs_dim=obs_sample.shape[-1], act_dim=act_sample.shape[-1], hidden_size=hidden_size
+        obs_dim=obs_sample.shape[-1],
+        act_dim=act_sample.shape[-1],
+        hidden_size=hidden_size,
     )
 
 # --- Weights and Biases ---
@@ -43,7 +48,7 @@ logger = wandb.init(
         "hidden_size": hidden_size,
         "seed": seed,
     },
-    directory="exp/",
+    dir="exp/",
 )
 
 # --- Trainer initialization and training ---
@@ -58,5 +63,12 @@ trainer = Trainer(
 )
 
 trainer.train(train_dataset, val_dataset, batch_size, num_train_steps, val_batches)
+
+save_dir = f"exp/{env_name}/env_models"
+os.makedirs(save_dir, exist_ok=True)
+model_path = os.path.join(save_dir, f"{model}.pt")
+with open(model_path, "wb") as f:
+    f.write(flax.serialization.to_bytes(trainer.state.params))
+wandb.save(model_path)
 
 logger.finish()
