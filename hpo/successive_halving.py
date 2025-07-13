@@ -1,77 +1,23 @@
+from collections import defaultdict
 from typing import List
 
 import numpy as np
+
 from hpo.strategy import HpoStrategy
 from trainer.config import ExperimentConfig
-from collections import defaultdict
 
 
 class SuccessiveHalving(HpoStrategy):
-    """
-    A hyperparameter optimization strategy that samples candidates based on the worst performance
-    in the population. It removes candidates that have the worst performance.
-    """
-    def __init__(self, population: List[ExperimentConfig], total_evaluations: int, fraction: float = 0.5, state_dict: dict | None = None) -> None:
-        super().__init__(population=population, total_evaluations=total_evaluations, state_dict=state_dict)
-        self.fraction = fraction
-
-        self.candidate_scores = defaultdict(float)
-        self.performed_evaluations = 0
-
-        self.halving_milestones = compute_halving_milestones(population, fraction, total_evaluations)
-
-        if state_dict is not None:
-            self.candidate_scores = state_dict["candidate_scores"]
-            self.performed_evaluations = state_dict["performed_evaluations"]
-
-    def state_dict(self) -> dict:
-        """
-        Get the state dictionary of the strategy.
-
-        Returns:
-            dict: State dictionary containing the candidate scores and fraction.
-        """
-        return {
-            **super().state_dict(),
-            "candidate_scores": dict(self.candidate_scores),
-            "performed_evaluations": self.performed_evaluations,
-        }
-
-    def update(self, candidate: ExperimentConfig, performance: float) -> None:
-        self.candidate_scores[candidate] = performance
-
-    def sample(self) -> List[ExperimentConfig]:
-        self.performed_evaluations += 1
-
-        if self.performed_evaluations not in self.halving_milestones:
-            return self.population
-
-        if len(self.population) <= 1:
-            return self.population
-
-        new_length = max(1, int(len(self.population) - len(self.population) * self.fraction))
-
-        sorted_population = sorted(
-            self.candidate_scores.items(), key=lambda x: x[1], reverse=True
-        )
-        best_candidates_with_scores = sorted_population[:new_length]
-        self.population = [candidate for candidate, _ in best_candidates_with_scores]
-        self.candidate_scores = defaultdict(float, best_candidates_with_scores)
-        return self.population
-
-
-class SuccessiveHalvingWithHistory(HpoStrategy):
-
     def __init__(
-            self,
-            population: List[ExperimentConfig],
-            total_evaluations: int,
-            fraction: float = 0.5,
-            history_length: int = 3,
-            state_dict: dict | None = None
+        self,
+        population: List[ExperimentConfig],
+        total_evaluations: int,
+        fraction: float = 0.5,
+        history_length: int = 1,
+        state_dict: dict | None = None,
     ) -> None:
         """
-        Initialize the SuccessiveHalvingWithHistory strategy.
+        Initialize the SuccessiveHalving strategy.
 
         Args:
             population (List[ExperimentConfig]): Initial population of candidate configurations.
@@ -85,7 +31,7 @@ class SuccessiveHalvingWithHistory(HpoStrategy):
         self.candidate_scores = defaultdict(list)
         self.performed_evaluations = 0
         self.fraction = fraction
-        self.halving_milestones = compute_halving_milestones(population, fraction, total_evaluations)
+        self.halving_milestones = self.compute_halving_milestones()
 
         if state_dict is not None:
             self.candidate_scores = state_dict["candidate_scores"]
@@ -127,17 +73,21 @@ class SuccessiveHalvingWithHistory(HpoStrategy):
         """
         self.performed_evaluations += 1
 
-        if self.performed_evaluations not in self.halving_milestones or self.performed_evaluations < self.history_length:
+        if (
+            self.performed_evaluations not in self.halving_milestones
+            or self.performed_evaluations < self.history_length
+        ):
             return self.population
-
 
         if len(self.population) <= 1:
             return self.population
 
-        new_length = max(1,  int(len(self.population) - len(self.population) * self.fraction))
+        new_length = max(
+            1, int(len(self.population) - len(self.population) * self.fraction)
+        )
 
         average_scores = {
-            key: sum(values[-self.history_length:]) / self.history_length
+            key: sum(values[-self.history_length :]) / self.history_length
             for key, values in self.candidate_scores.items()
             if values
         }
@@ -151,24 +101,17 @@ class SuccessiveHalvingWithHistory(HpoStrategy):
         self.candidate_scores = defaultdict(list, best_candidates_with_scores)
         return self.population
 
+    def compute_halving_milestones(self) -> List[int]:
+        """
+        Compute the evaluation steps (milestones) at which the population should be halved,
+        as used in Successive Halving algorithm.
 
-def compute_halving_milestones(population: List[ExperimentConfig], fraction: float, total_evaluations: int) -> List[int]:
-    """
-    Compute the evaluation steps (milestones) at which the population should be halved,
-    as used in Successive Halving algorithm.
-
-    Args:
-        population (List[ExperimentConfig]): The list of initial candidate configurations.
-        fraction (float): The fraction of candidates to keep at each halving step (e.g., 0.5).
-        total_evaluations (int): The total evaluation budget across all steps.
-
-    Returns:
-        List[int]: A list of evaluation steps (milestones) at which to perform halving,
-                   in descending order of aggressiveness (early rounds require more evals).
-    """
-    N = len(population)
-    eta = 1 / fraction
-    T = int (total_evaluations * fraction)
-    R = int(np.floor(np.log(N) / np.log(eta))) # Number of halving rounds
-    return [int(T * eta ** -r) for r in range(R)]
-
+        Returns:
+            List[int]: A list of evaluation steps (milestones) at which to perform halving,
+                    in descending order of aggressiveness (early rounds require more evals).
+        """
+        N = len(self.population)
+        eta = 1 / self.fraction
+        T = int(self.total_evaluations * self.fraction)
+        R = int(np.floor(np.log(N) / np.log(eta)))  # Number of halving rounds
+        return [int(T * eta**-r) for r in range(R)]

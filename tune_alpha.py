@@ -6,7 +6,6 @@ import numpy as np
 
 from argparser import build_config_from_args, get_argparser
 from hpo.identity import Identity
-from hpo.strategy_evaluator import HpoStrategyEvaluator
 from task.offline_task_real import OfflineTaskWithRealEvaluations
 from trainer.config import ExperimentConfig
 from trainer.trainer import Trainer
@@ -59,18 +58,11 @@ if checkpoint_path.exists():
         state_dict = pickle.load(f)
 
 # create trainer
-strategy = HpoStrategyEvaluator(
+strategy = Identity(
     population=experiment_configs,
-    total_evaluations=config.steps // config.eval_interval,
-    save_directory=config.save_directory,
-    env_name=config.env_name,
+    total_evaluations=0,
     state_dict=state_dict.get("strategy"),
 )
-# strategy = Identity(
-#     population=experiment_configs,
-#     total_evaluations=0,
-#     state_dict=state_dict.get("strategy"),
-# )
 task = OfflineTaskWithRealEvaluations(
     config.buffer_size, config.env_name, config.data_directory
 )

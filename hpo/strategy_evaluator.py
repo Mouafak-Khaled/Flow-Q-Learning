@@ -1,7 +1,7 @@
 from typing import List
 
 from hpo.strategy import HpoStrategy
-from hpo.successive_halving import SuccessiveHalving, SuccessiveHalvingWithHistory
+from hpo.successive_halving import SuccessiveHalving
 from trainer.config import ExperimentConfig
 from utils.logger import CsvLogger
 from pathlib import Path
@@ -55,7 +55,7 @@ class HpoStrategyEvaluator(HpoStrategy):
             ),
 
             "successive_halving_0.25_with_history_2": (
-                SuccessiveHalvingWithHistory,
+                SuccessiveHalving,
                 {
                     "population": population,
                     "total_evaluations": total_evaluations,
@@ -65,7 +65,7 @@ class HpoStrategyEvaluator(HpoStrategy):
             ),
 
             "successive_halving_0.5_with_history_2": (
-                SuccessiveHalvingWithHistory,
+                SuccessiveHalving,
                 {
                     "population": population,
                     "total_evaluations": total_evaluations,
@@ -75,7 +75,7 @@ class HpoStrategyEvaluator(HpoStrategy):
             ),
 
             "successive_halving_0.75_with_history_2": (
-                SuccessiveHalvingWithHistory,
+                SuccessiveHalving,
                 {
                     "population": population,
                     "total_evaluations": total_evaluations,
@@ -85,7 +85,7 @@ class HpoStrategyEvaluator(HpoStrategy):
             ),
 
             "successive_halving_0.25_with_history_4": (
-                SuccessiveHalvingWithHistory,
+                SuccessiveHalving,
                 {
                     "population": population,
                     "total_evaluations": total_evaluations,
@@ -95,7 +95,7 @@ class HpoStrategyEvaluator(HpoStrategy):
             ),
 
             "successive_halving_0.5_with_history_4": (
-                SuccessiveHalvingWithHistory,
+                SuccessiveHalving,
                 {
                     "population": population,
                     "total_evaluations": total_evaluations,
@@ -105,7 +105,7 @@ class HpoStrategyEvaluator(HpoStrategy):
             ),
 
             "successive_halving_0.75_with_history_4": (
-                SuccessiveHalvingWithHistory,
+                SuccessiveHalving,
                 {
                     "population": population,
                     "total_evaluations": total_evaluations,
@@ -115,7 +115,7 @@ class HpoStrategyEvaluator(HpoStrategy):
             ),
 
             "successive_halving_0.25_with_history_8": (
-                SuccessiveHalvingWithHistory,
+                SuccessiveHalving,
                 {
                     "population": population,
                     "total_evaluations": total_evaluations,
@@ -125,7 +125,7 @@ class HpoStrategyEvaluator(HpoStrategy):
             ),
 
             "successive_halving_0.5_with_history_8": (
-                SuccessiveHalvingWithHistory,
+                SuccessiveHalving,
                 {
                     "population": population,
                     "total_evaluations": total_evaluations,
@@ -135,7 +135,7 @@ class HpoStrategyEvaluator(HpoStrategy):
             ),
 
             "successive_halving_0.75_with_history_8": (
-                SuccessiveHalvingWithHistory,
+                SuccessiveHalving,
                 {
                     "population": population,
                     "total_evaluations": total_evaluations,

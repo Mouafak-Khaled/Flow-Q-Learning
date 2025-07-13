@@ -19,6 +19,10 @@ class CsvLogger:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         if resume:
             self.file = open(path, 'a')
+            if os.path.getsize(path) != 0:
+                with open(path, 'r') as f:
+                    first_line = f.readline().strip()
+                    self.header = first_line.split(',')
         else:
             self.file = open(path, 'w')
 
