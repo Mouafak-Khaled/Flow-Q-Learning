@@ -2,7 +2,10 @@ import jax.numpy as jnp
 from flax import linen as nn
 
 
-class SimpleCubeEnvModel(nn.Module):
+class BaselineEnvModel(nn.Module):
+    """A baseline environment model that predicts next observations and rewards.
+    This model is deterministic and does not use any latent variables."""
+
     obs_dim: int = 28
     act_dim: int = 5
     hidden_size: int = 128
@@ -15,8 +18,8 @@ class SimpleCubeEnvModel(nn.Module):
 
         x = nn.relu(nn.Dense(self.hidden_size)(x))
         x = nn.relu(nn.Dense(self.hidden_size)(x))
-        out = nn.Dense(self.obs_dim + 1)(x)
+        next_obs = nn.Dense(self.obs_dim)(x) + obs
+        reward = nn.Dense(1)(x)
+        terminated = nn.Dense(1)(x)
 
-        next_obs = out[..., :-1]
-        reward = out[..., -1]
-        return next_obs, reward
+        return next_obs, reward, terminated
