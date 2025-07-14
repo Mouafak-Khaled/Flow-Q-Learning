@@ -85,6 +85,8 @@ class Trainer:
             if len(untrained_candidates) > 0:
                 self.untrained_candidates = untrained_candidates
                 break
+            else:
+                self.untrained_candidates = []
 
             # Evaluate experiments
             for config in self.candidates:
