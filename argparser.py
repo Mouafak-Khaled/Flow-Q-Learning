@@ -1,7 +1,6 @@
 from pathlib import Path
 import argparse
 from ast import literal_eval
-from envmodel.config import EnvModelTrainerConfig, EnvModelConfig
 from trainer.config import TrainerConfig, AgentConfig
 
 
@@ -153,7 +152,7 @@ def build_config_from_args(args: argparse.Namespace) -> TrainerConfig:
     return trainer_config
 
 
-def get_model_argparser() -> argparse.ArgumentParser:
+def get_env_model_argparser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(description="The configurations of the environment model.")
 
@@ -164,12 +163,7 @@ def get_model_argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--hidden_dim", type=int, default=256, help="The dimension of hidden layers."
     )
-    parser.add_argument(
-        "--action_dim", type=int, default=5, help="The dimension of actions."
-    )
-    parser.add_argument(
-        "--state_dim", type=int, default=64, help="The dimension of a state observation."
-    )
+
     parser.add_argument(
         "--steps", type=int, default=2000, help="The number of training steps."
     )
