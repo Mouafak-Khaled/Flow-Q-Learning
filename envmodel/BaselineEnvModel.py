@@ -1,14 +1,19 @@
 import jax.numpy as jnp
 from flax import linen as nn
+from argparse import Namespace
+
 
 
 class BaselineEnvModel(nn.Module):
     """A baseline environment model that predicts next observations and rewards.
     This model is deterministic and does not use any latent variables."""
 
-    obs_dim: int = 28
-    act_dim: int = 5
-    hidden_size: int = 128
+    def __init__(self, config: Namespace):
+        self.config = config
+        self.obs_dim = self.config.state_dim
+        self.act_dim = self.config.action_dim
+        self.hidden_size = self.config.hidden_dim
+
 
     @nn.compact
     def __call__(self, obs, act):
