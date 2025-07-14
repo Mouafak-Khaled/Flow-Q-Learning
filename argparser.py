@@ -176,9 +176,6 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
         "--init_learning_rate", type=float, default=1e-4, help="Initial learning rate."
     )
     parser.add_argument(
-        "--lr_decay_steps", type=int, default=100, help="Learning rate decay steps."
-    )
-    parser.add_argument(
         "--seed", type=int, default=0, help="Random seed for training."
     )
 
