@@ -1,7 +1,7 @@
 from pathlib import Path
 import argparse
 from ast import literal_eval
-
+from envmodel.config import EnvModelTrainerConfig, EnvModelConfig
 from trainer.config import TrainerConfig, AgentConfig
 
 
@@ -175,6 +175,25 @@ def get_model_argparser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--task", type=str, required=True, help="The environment task."
+    )
+
+    # Trainer-specific arguments
+    parser.add_argument(
+        "--init_learning_rate", type=float, default=1e-4, help="Initial learning rate."
+    )
+    parser.add_argument(
+        "--lr_decay_steps", type=int, default=100, help="Learning rate decay steps."
+    )
+    parser.add_argument(
+        "--seed", type=int, default=0, help="Random seed for training."
+    )
+
+    parser.add_argument(
+        "--batch_size", type=int, default=256, help="Batch size."
+    )
+
+    parser.add_argument(
+        "--val_batches", type=int, default=20, help="Number of validation batches."
     )
 
     return parser
