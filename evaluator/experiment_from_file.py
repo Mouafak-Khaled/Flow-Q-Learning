@@ -12,7 +12,6 @@ class ExperimentFromFile:
     ):
         self.save_directory = save_directory
         self.env_name = env_name
-        self.path = save_directory / env_name / "strategies_stopping_times.csv"
         pattern = re.compile(r"_(\d{8}_\d{6})")
 
         def extract_timestamp(file_path):

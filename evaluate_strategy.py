@@ -75,5 +75,5 @@ evaluator = StrategyEvaluator(strategy, config)
 # evaluate the agents
 evaluator.evaluate()
 
-
+# plot the results
 evaluator.plot()

@@ -4,6 +4,7 @@ import seaborn as sns
 from evaluator.experiment_from_file import ExperimentFromFile
 from hpo.strategy import HpoStrategy
 from trainer.config import TrainerConfig
+from hpo.successive_halving import SuccessiveHalving
 
 
 class StrategyEvaluator:
@@ -84,6 +85,12 @@ class StrategyEvaluator:
                 )
         plt.xlabel("Step")
         plt.ylabel("Success Rate")
-        plt.title(r"Successive Halving $f=0.25$")
+        plt.title(get_strategy_title(self.strategy))
         plt.legend()
         plt.show()
+
+def get_strategy_title(strategy: HpoStrategy) -> str:
+    if isinstance(strategy, SuccessiveHalving):
+        return fr"Successive Halving $(f={strategy.fraction}, h={strategy.history_length})$"
+    else:
+        return "Unknown Strategy"
