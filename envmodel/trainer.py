@@ -7,27 +7,29 @@ import optax
 from flax import linen as nn
 from flax.training import train_state
 from tqdm import trange
+
 from wandb.sdk.wandb_run import Run
-from argparse import Namespace
 
 
 class Trainer:
     def __init__(
         self,
         model: nn.Module,
-        configs: Namespace,
+        init_learning_rate: float,
+        lr_decay_steps: int,
+        seed: int,
         obs_sample: jnp.ndarray,
         act_sample: jnp.ndarray,
         logger: Run | None = None,
     ):
         self.model = model
-        self.rng = jax.random.PRNGKey(configs.seed)
+        self.rng = jax.random.PRNGKey(seed)
 
         self.params = self.model.init(self.rng, obs_sample, act_sample)
 
         self.schedule = optax.cosine_decay_schedule(
-            init_value=configs.init_learning_rate,
-            decay_steps=configs.lr_decay_steps,
+            init_value=init_learning_rate,
+            decay_steps=lr_decay_steps,
         )
         self.optimizer = optax.adam(self.schedule)
 
