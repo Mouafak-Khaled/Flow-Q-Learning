@@ -7,21 +7,23 @@ import wandb
 from envmodel.BaselineEnvModel import BaselineEnvModel
 from envmodel.trainer import Trainer
 from fql.utils.datasets import Dataset
+from argparser import get_env_model_argparser
 
-env_name = "cube-single-play-singletask-task2-v0"
-model = "baseline"
+args = get_env_model_argparser().parse_args()
+env_name = args.task
+model = args.model
 
 env, train_dataset, val_dataset = ogbench.make_env_and_datasets(env_name)
 train_dataset = Dataset.create(**train_dataset)
 val_dataset = Dataset.create(**val_dataset)
 
 # --- Hyperparameters ---
-batch_size = 256
-init_learning_rate = 1e-3
-hidden_size = 128
-num_train_steps = 2000
-val_batches = 20
-seed = 42
+batch_size = args.batch_size
+init_learning_rate = args.init_learning_rate
+hidden_size = args.hidden_dim
+num_train_steps = args.steps
+val_batches = args.val_batches
+seed = args.seed
 
 # Sample once to get shapes
 sample_batch = train_dataset.sample(batch_size)
