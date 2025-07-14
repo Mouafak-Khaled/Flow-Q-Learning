@@ -151,3 +151,30 @@ def build_config_from_args(args: argparse.Namespace) -> TrainerConfig:
     trainer_config = TrainerConfig(**filtered_trainer_kwargs, agent=agent_config)
 
     return trainer_config
+
+
+def get_model_argparser() -> argparse.ArgumentParser:
+
+    parser = argparse.ArgumentParser(description="The configurations of the environment model.")
+
+    parser.add_argument(
+        "--model", type=str, default="baseline", help="Th environment model to be used."
+    )
+
+    parser.add_argument(
+        "--hidden_dim", type=int, default=256, help="The dimension of hidden layers."
+    )
+    parser.add_argument(
+        "--action_dim", type=int, default=5, help="The dimension of actions."
+    )
+    parser.add_argument(
+        "--state_dim", type=int, default=64, help="The dimension of a state observation."
+    )
+    parser.add_argument(
+        "--steps", type=int, default=2000, help="The number of training steps."
+    )
+    parser.add_argument(
+        "--task", type=str, required=True, help="The environment task."
+    )
+
+    return parser
