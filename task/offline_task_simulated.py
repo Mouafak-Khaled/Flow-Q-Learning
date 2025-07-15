@@ -1,22 +1,23 @@
-from typing import Dict, Any, Literal
-import jax.numpy as jnp
-from task.task import Task
-from flax import linen as nn
-from fql.envs.env_utils import make_env_and_datasets
-from fql.utils.datasets import ReplayBuffer, Dataset
 from pathlib import Path
+from typing import Any, Dict, Literal
+
+import jax.numpy as jnp
+from flax import linen as nn
+
+from fql.envs.env_utils import make_env_and_datasets
+from fql.utils.datasets import Dataset, ReplayBuffer
+from task.task import Task
 
 
 class OfflineTaskWithSimulatedEvaluations(Task):
-
     def __init__(
-            self,
-            model: nn.Module,
-            params: Dict[str, Any],
-            env_name: str,
-            buffer_size: int,
-            data_directory: Path,
-            max_episode_steps: int = 1000
+        self,
+        model: nn.Module,
+        params: Dict[str, Any],
+        env_name: str,
+        buffer_size: int,
+        data_directory: Path,
+        max_episode_steps: int = 1000,
     ):
         self.model = model
         self.max_episode_steps = max_episode_steps
@@ -63,3 +64,6 @@ class OfflineTaskWithSimulatedEvaluations(Task):
             info["success"] = 1 if terminated else 0
 
         return next_obs, reward, terminated, truncated, info
+
+    def close(self):
+        self.eval_env.close()

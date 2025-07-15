@@ -5,7 +5,7 @@ import flax
 import ogbench
 import wandb
 
-from envmodel.BaselineEnvModel import BaselineEnvModel
+from envmodel.baseline import BaselineEnvModel
 from envmodel.trainer import Trainer
 from fql.utils.datasets import Dataset
 from argparser import get_env_model_argparser
