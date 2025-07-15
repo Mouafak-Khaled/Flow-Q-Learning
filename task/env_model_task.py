@@ -1,12 +1,9 @@
-from typing import Literal, Tuple, Dict, Any, Optional
+from typing import Dict, Any, Literal
 import jax.numpy as jnp
-import jax
-import numpy as np
-from envmodel.wrapper import EnvModelWrapper
 from task.task import Task
 from flax import linen as nn
 from fql.envs.env_utils import make_env_and_datasets
-from fql.utils.datasets import Dataset, ReplayBuffer
+from fql.utils.datasets import ReplayBuffer, Dataset
 from pathlib import Path
 
 
@@ -19,7 +16,7 @@ class OfflineTaskWithSimulatedEvaluations(Task):
             env_name: str,
             buffer_size: int,
             data_directory: Path,
-            max_episode_steps: int=1000
+            max_episode_steps: int = 1000
     ):
         self.model = model
         self.max_episode_steps = max_episode_steps
@@ -28,13 +25,22 @@ class OfflineTaskWithSimulatedEvaluations(Task):
         _, self.eval_env, self.train_dataset, self.val_dataset = make_env_and_datasets(
             env_name, data_directory
         )
+
+        self.train_dataset = Dataset.create(**self.train_dataset)
         self.train_dataset = ReplayBuffer.create_from_initial_dataset(
             dict(self.train_dataset), size=max(buffer_size, self.train_dataset.size + 1)
         )
         self.current_obs = None
         self.episode_steps = 0
 
-    def reset(self, seed: int= 0):
+    def sample(self, dataset: Literal["train", "val"], batch_size: int):
+        return (
+            self.train_dataset.sample(batch_size)
+            if dataset == "train"
+            else self.val_dataset.sample(batch_size)
+        )
+
+    def reset(self, seed: int = 0):
         obs, info = self.eval_env.reset(seed=seed)
         self.current_obs = obs
         self.episode_steps = 0
