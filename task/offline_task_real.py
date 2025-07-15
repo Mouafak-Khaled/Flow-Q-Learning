@@ -30,8 +30,11 @@ class OfflineTaskWithRealEvaluations(Task):
             else self.val_dataset.sample(batch_size)
         )
 
-    def reset(self):
-        return self.eval_env.reset()
+    def reset(self, seed: int = 0):
+        return self.eval_env.reset(seed=seed)
 
     def step(self, action):
         return self.eval_env.step(action)
+
+    def close(self):
+        self.eval_env.close()

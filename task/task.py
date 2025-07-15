@@ -18,7 +18,7 @@ class Task(ABC):
         pass
 
     @abstractmethod
-    def reset(self):
+    def reset(self, seed: int = 0):
         """
         Abstract method to reset the task environment to its initial state.
         """
@@ -34,5 +34,12 @@ class Task(ABC):
 
         Returns:
             A tuple containing (next_observation, reward, terminated, truncated, info).
+        """
+        pass
+
+    @abstractmethod
+    def close(self):
+        """
+        Abstract method to close the task environment.
         """
         pass

@@ -1,7 +1,6 @@
 from pathlib import Path
 import argparse
 from ast import literal_eval
-
 from trainer.config import TrainerConfig, AgentConfig
 
 
@@ -151,3 +150,41 @@ def build_config_from_args(args: argparse.Namespace) -> TrainerConfig:
     trainer_config = TrainerConfig(**filtered_trainer_kwargs, agent=agent_config)
 
     return trainer_config
+
+
+def get_env_model_argparser() -> argparse.ArgumentParser:
+
+    parser = argparse.ArgumentParser(description="The configurations of the environment model.")
+
+    parser.add_argument(
+        "--model", type=str, default="baseline", help="Th environment model to be used."
+    )
+
+    parser.add_argument(
+        "--hidden_dim", type=int, default=256, help="The dimension of hidden layers."
+    )
+
+    parser.add_argument(
+        "--steps", type=int, default=2000, help="The number of training steps."
+    )
+    parser.add_argument(
+        "--task", type=str, required=True, help="The environment task."
+    )
+
+    # Trainer-specific arguments
+    parser.add_argument(
+        "--init_learning_rate", type=float, default=1e-4, help="Initial learning rate."
+    )
+    parser.add_argument(
+        "--seed", type=int, default=0, help="Random seed for training."
+    )
+
+    parser.add_argument(
+        "--batch_size", type=int, default=256, help="Batch size."
+    )
+
+    parser.add_argument(
+        "--val_batches", type=int, default=20, help="Number of validation batches."
+    )
+
+    return parser
