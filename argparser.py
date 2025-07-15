@@ -161,19 +161,19 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--hidden_dim", type=int, default=256, help="The dimension of hidden layers."
+        "--hidden_dim", type=int, default=128, help="The dimension of hidden layers."
     )
 
     parser.add_argument(
         "--steps", type=int, default=2000, help="The number of training steps."
     )
     parser.add_argument(
-        "--task", type=str, required=True, help="The environment task."
+        "--env_name", type=str, default="cube-single-play-singletask-task2-v0", help="The environment task."
     )
 
     # Trainer-specific arguments
     parser.add_argument(
-        "--init_learning_rate", type=float, default=1e-4, help="Initial learning rate."
+        "--init_learning_rate", type=float, default=1e-3, help="Initial learning rate."
     )
     parser.add_argument(
         "--seed", type=int, default=0, help="Random seed for training."
@@ -185,6 +185,20 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--val_batches", type=int, default=20, help="Number of validation batches."
+    )
+
+    parser.add_argument(
+        "--data_directory",
+        type=str,
+        default="data/",
+        help="Path to a directory where training data is stored.",
+    )
+
+    parser.add_argument(
+        "--save_directory",
+        type=str,
+        default="exp/",
+        help="Path to a directory where model parameters will be saved.",
     )
 
     return parser

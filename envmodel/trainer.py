@@ -44,23 +44,21 @@ class Trainer:
     ) -> Tuple[jnp.ndarray, Dict[str, jnp.ndarray]]:
         """Computes the total loss for a given batch."""
 
-        pred_next_obs, pred_reward, pred_terminals = self.model.apply(
+        pred_next_obs, pred_terminals = self.model.apply(
             params, batch["observations"], batch["actions"]
         )
 
         next_observation_loss = jnp.mean(
             jnp.square(pred_next_obs - batch["next_observations"])
         )
-        reward_loss = jnp.mean(jnp.square(pred_reward - batch["rewards"]))
         terminated_loss = optax.sigmoid_binary_cross_entropy(
-            logits=jnp.squeeze(pred_terminals), labels=batch["terminals"]
+            logits=jnp.squeeze(pred_terminals), labels=1 - batch["masks"]
         ).mean()
 
-        loss = next_observation_loss + reward_loss + terminated_loss
+        loss = next_observation_loss + terminated_loss
 
         logs = {
             "next_observation_loss": next_observation_loss,
-            "reward_loss": reward_loss,
             "terminated_loss": terminated_loss,
             "loss": loss,
         }

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import flax
 import ogbench
@@ -11,7 +12,7 @@ from argparser import get_env_model_argparser
 
 args = get_env_model_argparser().parse_args()
 
-env, train_dataset, val_dataset = ogbench.make_env_and_datasets(args.task)
+env, train_dataset, val_dataset = ogbench.make_env_and_datasets(args.env_name, args.data_directory)
 train_dataset = Dataset.create(**train_dataset)
 val_dataset = Dataset.create(**val_dataset)
 
@@ -30,9 +31,20 @@ if args.model == "baseline":
 
 # --- Weights and Biases ---
 logger = wandb.init(
-    name=f"{args.task}_{args.model}",
+    name=f"{args.env_name}_{args.model}",
     project="fql_env_model",
-    config=args.as_dict(),
+    config={
+        "env_name": args.env_name,
+        "model": args.model,
+        "hidden_dim": args.hidden_dim,
+        "steps": args.steps,
+        "init_learning_rate": args.init_learning_rate,
+        "seed": args.seed,
+        "batch_size": args.batch_size,
+        "val_batches": args.val_batches,
+        "data_directory": args.data_directory,
+        "save_directory": args.save_directory,
+    },
     dir="exp/",
 )
 
@@ -49,9 +61,9 @@ trainer = Trainer(
 
 trainer.train(train_dataset, val_dataset, args.batch_size, args.steps, args.val_batches)
 
-save_dir = f"exp/{args.task}/env_models"
-os.makedirs(save_dir, exist_ok=True)
-model_path = os.path.join(save_dir, f"{args.model}.pt")
+save_dir = Path(args.save_directory) / args.env_name / "env_models"
+save_dir.mkdir(parents=True, exist_ok=True)
+model_path = save_dir / f"{args.model}.pt"
 with open(model_path, "wb") as f:
     f.write(flax.serialization.to_bytes(trainer.state.params))
 wandb.save(model_path)
