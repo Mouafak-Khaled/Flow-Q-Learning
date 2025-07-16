@@ -11,9 +11,9 @@ from task.task import Task
 
 
 class EnvModelEvaluator:
-    def __init__(self, task1: Task, task2: Task, agent: FQLAgent):
-        self.task1 = task1
-        self.task2 = task2
+    def __init__(self, reference: Task, evaluated: Task, agent: FQLAgent):
+        self.reference = reference
+        self.evaluated = evaluated
         self.agent = agent
 
     def evaluate(self):
@@ -28,8 +28,7 @@ class EnvModelEvaluator:
             np.random.seed(seed)
             task_transitions = defaultdict(list)
             observation, info = task.reset(seed=seed)
-            done = False
-            while not done:
+            for i in range(100):
                 action = actor_fn(observations=observation, temperature=0)
                 action = np.array(action)
                 action = np.clip(action, -1, 1)
@@ -50,27 +49,87 @@ class EnvModelEvaluator:
                 for k, v in transition.items():
                     task_transitions[k].append(v)
                 observation = next_observation
+                if done:
+                    break
             return task_transitions
 
-        seed = np.random.randint(0, 2**32)
+        reference_observations = []
+        evaluated_observations = []
+        max_size = 1000
+        for i in range(100):
+            seed = np.random.randint(0, 2**32)
 
-        task1_transitions = rollout(self.task1, seed)
-        task2_transitions = rollout(self.task2, seed)
+            reference_transitions = rollout(self.reference, seed)
+            evaluated_transitions = rollout(self.evaluated, seed)
 
-        task1_observations = np.array(task1_transitions["observation"])
-        task2_observations = np.array(task2_transitions["observation"])
+            max_size_temp = min(
+                len(reference_transitions["observation"]),
+                len(evaluated_transitions["observation"]),
+            )
 
-        max_size = min(task1_observations.shape[0], task2_observations.shape[0])
-        squared_diff = np.sum(
-            (task1_observations[:max_size] - task2_observations[:max_size]) ** 2, axis=1
-        )
+            if max_size_temp < 70:
+                continue
 
-        plt.figure(figsize=(8, 6))
+            max_size = min(max_size, max_size_temp)
+            reference_observations.append(
+                np.array(reference_transitions["observation"])
+            )
+            evaluated_observations.append(
+                np.array(evaluated_transitions["observation"])
+            )
+
+        mse = []
+        mae = []
+        for i in range(len(reference_observations)):
+            mse.append(
+                np.sum(
+                    (
+                        reference_observations[i][:max_size]
+                        - evaluated_observations[i][:max_size]
+                    )
+                    ** 2,
+                    axis=1,
+                )
+            )
+            mae.append(
+                np.sum(
+                    np.abs(
+                        reference_observations[i][:max_size]
+                        - evaluated_observations[i][:max_size]
+                    ),
+                    axis=1,
+                )
+            )
+
+        mse = np.stack(mse)
+        mae = np.stack(mae)
+
+        def get_stats(arr):
+            mean = np.mean(arr, axis=0)
+            min_ = np.min(arr, axis=0)
+            max_ = np.max(arr, axis=0)
+            return mean, min_, max_
+
+        mse_mean, mse_min, mse_max = get_stats(mse)
+        mae_mean, mae_min, mae_max = get_stats(mae)
+
+        steps = np.arange(mse.shape[1])
+
         sns.set_theme(style="darkgrid")
-        sns.lineplot(data=squared_diff, label="Squared Differences")
+        plt.figure(figsize=(8, 6))
+
+        plt.plot(steps, mse_mean, label="Mean Squared Error")
+        plt.fill_between(steps, mse_min, mse_max, alpha=0.2)
+
+        plt.plot(steps, mae_mean, label="Mean Absolute Error")
+        plt.fill_between(steps, mae_min, mae_max, alpha=0.2)
+
         plt.xlabel("Step")
-        plt.ylabel("Squared Error")
-        plt.title("Comparison of the Environment and the Model Trajectories")
+        plt.ylabel("Error")
+        plt.legend()
+
+        plt.title("Comparing Trajectories: Model vs Real Environment")
+        plt.tight_layout()
         plt.show()
 
 
