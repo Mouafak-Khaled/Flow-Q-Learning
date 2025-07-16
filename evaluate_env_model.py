@@ -17,7 +17,7 @@ args = parser.parse_args()
 config = build_config_from_args(args)
 
 real_task = OfflineTaskWithRealEvaluations(
-    config.buffer_size, config.env_name, config.data_directory
+    config.buffer_size, config.env_name, config.data_directory, num_evaluation_envs=config.eval_episodes
 )
 
 example_batch = real_task.sample("train", 1)

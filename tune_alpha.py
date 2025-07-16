@@ -64,7 +64,7 @@ strategy = Identity(
     state_dict=state_dict.get("strategy"),
 )
 task = OfflineTaskWithRealEvaluations(
-    config.buffer_size, config.env_name, config.data_directory
+    config.buffer_size, config.env_name, config.data_directory, num_evaluation_envs=config.eval_episodes
 )
 trainer = Trainer(task, strategy, config, state_dict=state_dict.get("trainer"))
 

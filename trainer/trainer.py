@@ -90,7 +90,7 @@ class Trainer:
 
             # Evaluate experiments
             for config in self.candidates:
-                score = self.experiments[config].evaluate(self.config.eval_episodes)
+                score = self.experiments[config].evaluate()
                 self.strategy.update(self.experiments[config], score)
 
             unfinished_candidates = [
