@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --array=0-2%1
+#SBATCH --array=0-40%1
 #SBATCH --job-name=TuneAlphaAntSoccer_FlowQLearning
 #SBATCH --partition=dllabdlc_gpu-rtx2080
 #SBATCH --mem=16GB
@@ -15,4 +15,4 @@ python tune_alpha.py \
     --env_name=antsoccer-arena-navigate-singletask-task4-v0 --agent.discount=0.995 \
     --save_directory=/work/dlclarge2/amriam-fql/exp/ --data_directory=/work/dlclarge2/amriam-fql/data/ \
     --number_of_seeds=2 --number_of_alphas=20 --max_evaluations=700 --use_wandb \
-    --eval_interval=20000 --eval_episodes=50
+    --eval_interval=20000 --eval_episodes=50 --single_experiment --job_id=$SLURM_ARRAY_TASK_ID
