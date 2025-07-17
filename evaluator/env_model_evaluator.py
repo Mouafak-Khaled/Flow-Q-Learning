@@ -9,7 +9,8 @@ import seaborn as sns
 from fql.agents.fql import FQLAgent
 from task.task import Task
 
-
+# TODO: refactor this to use the new vectorized task interface
+#       this doesn't work at the moment.
 class EnvModelEvaluator:
     def __init__(self, reference: Task, evaluated: Task, agent: FQLAgent):
         self.reference = reference

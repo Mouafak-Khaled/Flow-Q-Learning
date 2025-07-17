@@ -1,7 +1,7 @@
 import random
 
 import numpy as np
-
+import time
 from hpo.strategy import HpoStrategy
 from task.task import Task
 from trainer.config import TrainerConfig
@@ -77,9 +77,15 @@ class Trainer:
                 if max_evaluations == 0:
                     untrained_candidates.append(config)
                     continue
+                start_time = time.perf_counter()
                 if self.experiments[config].train(self.config.eval_interval):
                     self.experiments[config].save_agent()
                     self.finished_candidates.append(config)
+                # Evaluate experiments
+                score = self.experiments[config].evaluate()
+                self.strategy.update(self.experiments[config], score)
+                elapsed_time = time.perf_counter() - start_time
+                print(f"Elapsed time: {elapsed_time:.6f} seconds")
                 max_evaluations -= 1
 
             if len(untrained_candidates) > 0:
@@ -87,11 +93,6 @@ class Trainer:
                 break
             else:
                 self.untrained_candidates = []
-
-            # Evaluate experiments
-            for config in self.candidates:
-                score = self.experiments[config].evaluate(self.config.eval_episodes)
-                self.strategy.update(self.experiments[config], score)
 
             unfinished_candidates = [
                 config for config in self.candidates if config not in self.finished_candidates

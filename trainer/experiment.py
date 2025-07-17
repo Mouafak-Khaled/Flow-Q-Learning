@@ -6,8 +6,8 @@ from datetime import datetime
 import flax
 from tqdm import tqdm
 
+from evaluator.evaluation import evaluate
 from fql.agents.fql import FQLAgent
-from fql.utils.evaluation import evaluate
 from task.task import Task
 from trainer.config import ExperimentConfig, TrainerConfig
 from utils.logger import Logger
@@ -82,7 +82,7 @@ class Experiment:
     def state_dict(self):
         """
         Get the state dictionary of the experiment.
-        
+
         Returns:
             dict: State dictionary containing the experiment's state.
         """
@@ -95,10 +95,10 @@ class Experiment:
 
     def train(self, num_steps: int) -> bool:
         """Trains the agent for a specified number of steps.
-        
+
         Args:
             num_steps (int): Number of training steps to perform.
-            
+
         Returns:
             bool: True if training completed, False if stopped before reaching total steps.
         """
@@ -114,16 +114,11 @@ class Experiment:
                 val_batch = self.task.sample("val", self.agent.config["batch_size"])
                 _, val_info = self.agent.total_loss(val_batch, grad_params=None)
                 self.logger.log(val_info, step=self.current_step, group="val")
-        
+
         return self.current_step == self.steps
 
-    def evaluate(self, num_episodes: int = 50) -> float:
-        eval_info, _, _ = evaluate(
-            agent=self.agent,
-            env=self.task,
-            config=self.agent.config,
-            num_eval_episodes=num_episodes,
-        )
+    def evaluate(self) -> float:
+        eval_info = evaluate(agent=self.agent, env=self.task)
 
         if self.logger:
             self.logger.log(eval_info, step=self.current_step, group="eval")
@@ -138,10 +133,7 @@ class Experiment:
             agent=flax.serialization.to_state_dict(self.agent),
         )
         save_path = (
-            self.save_directory
-            / self.env_name
-            / self.experiment_name
-            / "params.pkl"
+            self.save_directory / self.env_name / self.experiment_name / "params.pkl"
         )
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)
