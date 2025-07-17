@@ -1,10 +1,12 @@
 from pathlib import Path
-from typing import Any, Dict, Literal
+from typing import Literal
 
-import numpy as np
+import flax
+import jax
 import jax.numpy as jnp
-from flax import linen as nn
+import numpy as np
 
+from envmodel.baseline import BaselineEnvModel
 from fql.envs.env_utils import make_env_and_datasets
 from fql.utils.datasets import Dataset, ReplayBuffer
 from task.task import Task
@@ -13,17 +15,14 @@ from task.task import Task
 class OfflineTaskWithSimulatedEvaluations(Task):
     def __init__(
         self,
-        model: nn.Module,
-        params: Dict[str, Any],
         env_name: str,
         buffer_size: int,
         data_directory: Path,
+        save_directory: Path,
         num_evaluation_envs: int = 50,
         max_episode_steps: int = 1000,
     ):
-        self.model = model
         self.max_episode_steps = max_episode_steps
-        self.params = params
 
         _, self.eval_envs, self.train_dataset, self.val_dataset = make_env_and_datasets(
             env_name, data_directory, num_evaluation_envs=num_evaluation_envs
@@ -33,7 +32,25 @@ class OfflineTaskWithSimulatedEvaluations(Task):
         self.train_dataset = ReplayBuffer.create_from_initial_dataset(
             dict(self.train_dataset), size=max(buffer_size, self.train_dataset.size + 1)
         )
-        self.current_observations = None
+
+        example_batch = self.train_dataset.sample(1)
+        self.model = BaselineEnvModel(
+            obs_dim=example_batch["observations"].shape[-1],
+            act_dim=example_batch["actions"].shape[-1],
+            hidden_size=128,
+        )
+        self.params = self.model.init(
+            jax.random.PRNGKey(0),
+            example_batch["observations"],
+            example_batch["actions"],
+        )
+        env_model_path = save_directory / env_name / "env_models" / "baseline.pt"
+        if env_model_path.exists():
+            with open(env_model_path, "rb") as f:
+                params_bytes = f.read()
+        self.params = flax.serialization.from_bytes(self.params, params_bytes)
+
+        self.current_obs = None
         self.episode_steps = 0
 
     def sample(self, dataset: Literal["train", "val"], batch_size: int):
@@ -44,24 +61,31 @@ class OfflineTaskWithSimulatedEvaluations(Task):
         )
 
     def reset(self, seed: int = 0):
-        observations, infos = zip(*[eval_env.reset(seed=seed + i) for i, eval_env in enumerate(self.eval_envs)])
+        observations, infos = zip(
+            *[
+                eval_env.reset(seed=seed + i)
+                for i, eval_env in enumerate(self.eval_envs)
+            ]
+        )
         merged_observations = np.array(observations)
         merged_infos = list(infos)
 
-        self.current_observations = merged_observations
+        self.current_obs = merged_observations
         self.episode_steps = 0
         self.invalidate = [False] * len(self.eval_envs)
 
         return merged_observations, merged_infos
 
     def step(self, actions):
-        next_observations, terminations = self.model.apply(self.params, self.current_observations, actions)
+        next_observations, terminations = self.model.apply(
+            self.params, self.current_obs, actions
+        )
 
         next_observations = jnp.asarray(next_observations)
         terminations = jnp.asarray(terminations).squeeze() > 0
         reward = jnp.where(terminations, 0, -1)
 
-        self.current_observations = next_observations
+        self.current_obs = next_observations
         self.episode_steps += 1
 
         truncations = self.episode_steps >= self.max_episode_steps
