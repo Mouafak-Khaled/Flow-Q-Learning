@@ -118,6 +118,17 @@ def get_argparser() -> argparse.ArgumentParser:
         default=None,
         help="Visual encoder name (e.g., impala_small).",
     )
+    parser.add_argument(
+        "--single_experiment",
+        action="store_true",
+        help="Whether to run a single experiment.",
+    )
+    parser.add_argument(
+        "--job_id",
+        type=int,
+        default=0,
+        help="Job ID in a Job Array.",
+    )
 
     return parser
 

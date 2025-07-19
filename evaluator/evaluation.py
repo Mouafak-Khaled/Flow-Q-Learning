@@ -49,7 +49,7 @@ def evaluate(
         A tuple containing the statistics.
     """
     actor_fn = supply_rng(agent.sample_actions, rng=jax.random.PRNGKey(np.random.randint(0, 2**32)))
-    stats = defaultdict(list) 
+    stats = defaultdict(list)
 
     observations, infos = env.reset()
     done = np.zeros(len(observations), dtype=bool)
