@@ -28,6 +28,9 @@ class OfflineTaskWithSimulatedEvaluations(Task):
             env_name, data_directory, num_evaluation_envs=num_evaluation_envs
         )
 
+        if num_evaluation_envs == 1:
+            self.eval_envs = [self.eval_envs]
+
         self.train_dataset = Dataset.create(**self.train_dataset)
         self.train_dataset = ReplayBuffer.create_from_initial_dataset(
             dict(self.train_dataset), size=max(buffer_size, self.train_dataset.size + 1)
@@ -60,16 +63,18 @@ class OfflineTaskWithSimulatedEvaluations(Task):
             else self.val_dataset.sample(batch_size)
         )
 
-    def reset(self, seed: int = 0):
-        observations, infos = zip(
-            *[
-                eval_env.reset(seed=seed + i)
-                for i, eval_env in enumerate(self.eval_envs)
-            ]
-        )
+    def reset(self, seed: int | None = None):
+        if len(self.eval_envs) == 1:
+            observation, info = self.eval_envs[0].reset(seed=seed)
+            observations = [observation]
+            infos = [info]
+        elif seed is None:
+            observations, infos = zip(*[eval_env.reset() for eval_env in self.eval_envs])
+        else:
+            observations, infos = zip(*[eval_env.reset(seed=seed + i) for i, eval_env in enumerate(self.eval_envs)])
+
         merged_observations = np.array(observations)
         merged_infos = list(infos)
-
         self.current_obs = merged_observations
         self.episode_steps = 0
         self.invalidate = [False] * len(self.eval_envs)
