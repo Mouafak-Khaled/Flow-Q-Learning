@@ -4,6 +4,7 @@
 #SBATCH --job-name=TuneAlphaCube_FlowQLearning
 #SBATCH --partition=dllabdlc_gpu-rtx2080
 #SBATCH --mem=16GB
+#SBATCH --time=02:00:00
 #SBATCH --output=/work/dlclarge2/amriam-fql/logs/slurm-%A_%a.out
 #SBATCH --error=/work/dlclarge2/amriam-fql/logs/slurm-%A_%a.err
 
