@@ -63,7 +63,9 @@ def evaluate(
         done = np.logical_or(terminated, truncated)
 
         for i, info in enumerate(infos):
-            if info.get('invalid', False) or not done[i]:
+            if info.get('invalid', False):
+                done[i] = True
+            if not done[i]:
                 continue
             add_to(stats, flatten(info))
 

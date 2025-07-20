@@ -98,6 +98,12 @@ class OfflineTaskWithSimulatedEvaluations(Task):
 
         infos = [{"success": s} for s in terminations]
 
+        for i in range(len(self.eval_envs)):
+            if self.invalidate[i]:
+                infos[i]['invalid'] = True
+            if terminations[i] or truncations[i]:
+                self.invalidate[i] = True
+
         return next_observations, reward, terminations, truncations, infos
 
     def close(self):
