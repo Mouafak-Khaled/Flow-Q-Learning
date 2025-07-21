@@ -65,6 +65,7 @@ def evaluate(
         for i, info in enumerate(infos):
             if info.get('invalid', False):
                 done[i] = True
+                continue
             if not done[i]:
                 continue
             add_to(stats, flatten(info))

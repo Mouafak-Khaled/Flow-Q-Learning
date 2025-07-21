@@ -59,6 +59,8 @@ if args.single_experiment:
     while not done:
         done = experiment.train(config.eval_interval)
         experiment.evaluate()
+    experiment.save_agent()
+    experiment.stop()
 else:
     experiment_configs = [
         ExperimentConfig(seed=seed, alpha=alpha) for alpha, seed in combinations
