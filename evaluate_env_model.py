@@ -1,6 +1,5 @@
 import pickle
 from dataclasses import asdict
-from pathlib import Path
 
 import flax
 import matplotlib.pyplot as plt
@@ -41,12 +40,7 @@ simulated_task = OfflineTaskWithSimulatedEvaluations(
     num_evaluation_envs=config.eval_episodes,
 )
 
-checkpoint_path = Path(
-    config.save_directory
-    / config.env_name
-    / "agent.pkl"
-)
-
+checkpoint_path = config.save_directory / config.env_name / "agent.pkl"
 if checkpoint_path.exists():
     with open(checkpoint_path, "rb") as f:
         state_dict = pickle.load(f)

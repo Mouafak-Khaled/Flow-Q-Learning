@@ -1,7 +1,8 @@
-from pathlib import Path
 import argparse
 from ast import literal_eval
-from trainer.config import TrainerConfig, AgentConfig
+from pathlib import Path
+
+from trainer.config import AgentConfig, TrainerConfig
 
 
 def get_argparser() -> argparse.ArgumentParser:
@@ -141,7 +142,7 @@ def build_config_from_args(args: argparse.Namespace) -> TrainerConfig:
 
     for k, v in args_dict.items():
         if k.startswith("agent."):
-            agent_field = k[len("agent."):]
+            agent_field = k[len("agent.") :]
             agent_kwargs[agent_field] = v
         else:
             trainer_kwargs[k] = v
@@ -152,20 +153,25 @@ def build_config_from_args(args: argparse.Namespace) -> TrainerConfig:
 
     # Build AgentConfig
     agent_config_fields = set(AgentConfig.__dataclass_fields__.keys())
-    filtered_agent_kwargs = {k: v for k, v in agent_kwargs.items() if k in agent_config_fields}
+    filtered_agent_kwargs = {
+        k: v for k, v in agent_kwargs.items() if k in agent_config_fields
+    }
     agent_config = AgentConfig(**filtered_agent_kwargs)
 
     # Build TrainerConfig with agent inside
     trainer_config_fields = set(TrainerConfig.__dataclass_fields__.keys())
-    filtered_trainer_kwargs = {k: v for k, v in trainer_kwargs.items() if k in trainer_config_fields}
+    filtered_trainer_kwargs = {
+        k: v for k, v in trainer_kwargs.items() if k in trainer_config_fields
+    }
     trainer_config = TrainerConfig(**filtered_trainer_kwargs, agent=agent_config)
 
     return trainer_config
 
 
 def get_env_model_argparser() -> argparse.ArgumentParser:
-
-    parser = argparse.ArgumentParser(description="The configurations of the environment model.")
+    parser = argparse.ArgumentParser(
+        description="The configurations of the environment model."
+    )
 
     parser.add_argument(
         "--model", type=str, default="baseline", help="Th environment model to be used."
@@ -179,20 +185,19 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
         "--steps", type=int, default=2000, help="The number of training steps."
     )
     parser.add_argument(
-        "--env_name", type=str, default="cube-single-play-singletask-task2-v0", help="The environment task."
+        "--env_name",
+        type=str,
+        default="cube-single-play-singletask-task2-v0",
+        help="The environment task.",
     )
 
     # Trainer-specific arguments
     parser.add_argument(
         "--init_learning_rate", type=float, default=1e-3, help="Initial learning rate."
     )
-    parser.add_argument(
-        "--seed", type=int, default=0, help="Random seed for training."
-    )
+    parser.add_argument("--seed", type=int, default=0, help="Random seed for training.")
 
-    parser.add_argument(
-        "--batch_size", type=int, default=256, help="Batch size."
-    )
+    parser.add_argument("--batch_size", type=int, default=256, help="Batch size.")
 
     parser.add_argument(
         "--val_batches", type=int, default=20, help="Number of validation batches."

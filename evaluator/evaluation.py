@@ -42,7 +42,10 @@ def evaluate(
     env: Task,
     seed: int | None = None,
     eval_temperature=0,
-) -> tuple[dict[str, float], list[tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]]:
+) -> tuple[
+    dict[str, float],
+    list[tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]],
+]:
     """Evaluate the agent in the environment.
 
     Args:
@@ -72,7 +75,7 @@ def evaluate(
         actions = actor_fn(observations=observations, temperature=eval_temperature)
         actions = np.array(actions)
         actions = np.clip(actions, -1, 1)
-        
+
         next_observations, _, terminated, truncated, infos = env.step(actions)
         mask = np.array([info.get("invalid", False) for info in infos], dtype=bool)
         done = np.logical_or(np.logical_or(terminated, truncated), mask)
@@ -81,8 +84,10 @@ def evaluate(
             if mask[i] or not done[i]:
                 continue
             add_to(stats, flatten(info))
-            
-        transitions.append((observations, actions, next_observations, terminated, truncated, mask))
+
+        transitions.append(
+            (observations, actions, next_observations, terminated, truncated, mask)
+        )
 
         observations = next_observations
 

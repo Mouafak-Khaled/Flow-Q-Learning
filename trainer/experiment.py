@@ -118,7 +118,7 @@ class Experiment:
         return self.current_step == self.steps
 
     def evaluate(self) -> float:
-        eval_info = evaluate(agent=self.agent, env=self.task)
+        eval_info, _ = evaluate(agent=self.agent, env=self.task)
 
         if self.logger:
             self.logger.log(eval_info, step=self.current_step, group="eval")
