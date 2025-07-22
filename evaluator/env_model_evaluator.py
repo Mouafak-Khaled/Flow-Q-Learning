@@ -39,7 +39,7 @@ class EnvModelEvaluator:
 
             def actor_fn(observations, temperature=0):
                 nonlocal idx
-                idx += 1
+                idx += 1 if idx < len(transitions) - 1 else 0
                 return transitions[idx][1]
 
             return actor_fn

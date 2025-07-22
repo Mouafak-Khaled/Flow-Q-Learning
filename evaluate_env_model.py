@@ -42,6 +42,10 @@ if checkpoint_path.exists():
     with open(checkpoint_path, "rb") as f:
         state_dict = pickle.load(f)
     agent = flax.serialization.from_state_dict(agent, state_dict["agent"])
+else:
+    raise FileNotFoundError(
+        f"Checkpoint not found at {checkpoint_path}. Please ensure the agent has been trained."
+    )
 
 env_model_evaluator = EnvModelEvaluator(
     real_task=real_task,
