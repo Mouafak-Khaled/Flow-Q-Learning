@@ -1,5 +1,6 @@
 import random
 from collections import defaultdict
+from typing import Callable
 
 import jax
 import numpy as np
@@ -37,24 +38,22 @@ def add_to(dict_of_lists, single_dict):
         dict_of_lists[k].append(v)
 
 
-def evaluate(
+def evaluate_agent(
     agent: FQLAgent,
     env: Task,
     seed: int | None = None,
-    eval_temperature=0,
-) -> tuple[
-    dict[str, float],
-    list[tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]],
-]:
+    eval_temperature: float = 0,
+) -> tuple[dict[str, float], list[tuple[np.ndarray, np.ndarray, np.ndarray]]]:
     """Evaluate the agent in the environment.
 
     Args:
-        agent: Agent.
-        env: Environment.
+        agent: The agent to evaluate.
+        env: The environment to evaluate the agent in.
+        seed: Random seed for evaluation.
         eval_temperature: Action sampling temperature.
 
     Returns:
-        A tuple containing the statistics.
+        A tuple containing the statistics and transitions.
     """
     actor_fn = supply_rng(
         agent.sample_actions,
@@ -62,6 +61,26 @@ def evaluate(
             seed if seed is not None else np.random.randint(0, 2**32)
         ),
     )
+    return evaluate_actor_fn(actor_fn, env, seed, eval_temperature)
+
+
+def evaluate_actor_fn(
+    actor_fn: Callable[[np.ndarray, float], np.ndarray],
+    env: Task,
+    seed: int | None = None,
+    eval_temperature: float = 0,
+) -> tuple[dict[str, float], list[tuple[np.ndarray, np.ndarray, np.ndarray]]]:
+    """Evaluate the actor in the environment.
+
+    Args:
+        actor_fn: Function to sample actions from the actor.
+        env: Environment.
+        seed: Random seed for evaluation.
+        eval_temperature: Action sampling temperature.
+
+    Returns:
+        A tuple containing the statistics.
+    """
     if seed is not None:
         random.seed(seed)
         np.random.seed(seed)
@@ -85,9 +104,7 @@ def evaluate(
                 continue
             add_to(stats, flatten(info))
 
-        transitions.append(
-            (observations, actions, next_observations, terminated, truncated, mask)
-        )
+        transitions.append((observations, actions, mask))
 
         observations = next_observations
 
