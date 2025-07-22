@@ -35,7 +35,7 @@ def get_argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--env_name",
         type=str,
-        default="cube-double-play-singletask-v0",
+        default="cube-single-play-singletask-task2-v0",
         help="Environment (dataset) name.",
     )
     parser.add_argument(
