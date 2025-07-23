@@ -38,7 +38,7 @@ class TrainerConfig:
     save_directory: Path = Path("exp/")
     data_directory: Path = Path("data/")
     use_wandb: bool = False
-    env_name: str = "cube-double-play-singletask-v0"
+    env_name: str = "cube-single-play-singletask-task2-v0"
     agent: AgentConfig = AgentConfig()
     eval_episodes: int = 50
     buffer_size: int = 2000000

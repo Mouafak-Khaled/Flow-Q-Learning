@@ -3,6 +3,7 @@ from ast import literal_eval
 from pathlib import Path
 
 from trainer.config import AgentConfig, TrainerConfig
+from envmodel.config import TrainerConfig as EnvModelTrainerConfig
 
 
 def get_argparser() -> argparse.ArgumentParser:
@@ -178,7 +179,7 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--hidden_dim", type=int, default=128, help="The dimension of hidden layers."
+        "--model.hidden_dim", type=int, default=128, help="The dimension of hidden layers."
     )
 
     parser.add_argument(
@@ -218,3 +219,30 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     )
 
     return parser
+
+
+def build_env_model_config_from_args(args: argparse.Namespace) -> EnvModelTrainerConfig:
+    args_dict = vars(args)
+
+    model_config = {}
+    trainer_kwargs = {}
+
+    for k, v in args_dict.items():
+        if k.startswith("model."):
+            model_field = k[len("model.") :]
+            model_config[model_field] = v
+        else:
+            trainer_kwargs[k] = v
+
+    # Adjust directory fields
+    trainer_kwargs["save_directory"] = Path(trainer_kwargs["save_directory"])
+    trainer_kwargs["data_directory"] = Path(trainer_kwargs["data_directory"])
+
+    # Build EnvModelTrainerConfig with model inside
+    trainer_config_fields = set(EnvModelTrainerConfig.__dataclass_fields__.keys())
+    filtered_trainer_kwargs = {
+        k: v for k, v in trainer_kwargs.items() if k in trainer_config_fields
+    }
+    trainer_config = EnvModelTrainerConfig(**filtered_trainer_kwargs, model_config=model_config)
+
+    return trainer_config

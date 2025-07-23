@@ -38,7 +38,7 @@ class OfflineTaskWithSimulatedEvaluations(Task):
 
         example_batch = self.train_dataset.sample(1)
         self.model = BaselineEnvModel(
-            obs_dim=example_batch["observations"].shape[-1],
+            observation_dimension=example_batch["observations"].shape[-1],
             act_dim=example_batch["actions"].shape[-1],
             hidden_size=128,
         )

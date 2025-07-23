@@ -2,3 +2,4 @@ logs/
 exp/
 data/
 __pycache__/
+.vscode/

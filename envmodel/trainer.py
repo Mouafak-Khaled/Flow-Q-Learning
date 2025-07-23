@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -9,62 +9,45 @@ from flax.training import train_state
 from tqdm import trange
 from wandb.sdk.wandb_run import Run
 
+from envmodel.config import TrainerConfig
 from utils.data_loader import DataLoader
+
+LossFn = Callable[
+    [nn.Module, Any, Dict[str, jnp.ndarray]], Tuple[jnp.ndarray, Dict[str, jnp.ndarray]]
+]
 
 
 class Trainer:
     def __init__(
         self,
         model: nn.Module,
-        init_learning_rate: float,
-        lr_decay_steps: int,
-        seed: int,
-        obs_sample: jnp.ndarray,
-        act_sample: jnp.ndarray,
+        train_loader: DataLoader,
+        val_loader: DataLoader,
+        loss_fn: LossFn,
+        config: TrainerConfig,
         logger: Run | None = None,
     ):
         self.model = model
-        self.rng = jax.random.PRNGKey(seed)
+        self.train_loader = train_loader
+        self.val_loader = val_loader
+        self.loss_fn = loss_fn
+        self.config = config
+        self.logger = logger
 
-        self.params = self.model.init(self.rng, obs_sample, act_sample)
+        self.rng = jax.random.PRNGKey(self.config.seed)
+
+        sample_batch = self.train_loader.sample(self.config.batch_size)
+        self.params = self.model.init(self.rng, **sample_batch)
 
         self.schedule = optax.cosine_decay_schedule(
-            init_value=init_learning_rate,
-            decay_steps=lr_decay_steps,
+            init_value=self.config.init_learning_rate,
+            decay_steps=self.config.steps,
         )
         self.optimizer = optax.adam(self.schedule)
 
         self.state = train_state.TrainState.create(
             apply_fn=self.model.apply, params=self.params, tx=self.optimizer
         )
-
-        self.logger = logger
-
-    def _compute_loss(
-        self, params: Any, batch: Dict[str, jnp.ndarray]
-    ) -> Tuple[jnp.ndarray, Dict[str, jnp.ndarray]]:
-        """Computes the total loss for a given batch."""
-
-        pred_next_obs, pred_terminals = self.model.apply(
-            params, batch["observations"], batch["actions"]
-        )
-
-        next_observation_loss = jnp.mean(
-            jnp.square(pred_next_obs - batch["next_observations"])
-        )
-        terminated_loss = optax.sigmoid_binary_cross_entropy(
-            logits=jnp.squeeze(pred_terminals), labels=1 - batch["masks"]
-        ).mean()
-
-        loss = next_observation_loss + terminated_loss
-
-        logs = {
-            "next_observation_loss": next_observation_loss,
-            "terminated_loss": terminated_loss,
-            "loss": loss,
-        }
-
-        return loss, logs
 
     @partial(jax.jit, static_argnums=0)
     def train_step(
@@ -73,7 +56,7 @@ class Trainer:
         """Performs a single training step (forward pass, loss calculation, gradients, update)."""
 
         def loss_fn(params):
-            return self._compute_loss(params, batch)
+            return self.loss_fn(self.model, params, batch)
 
         (loss, logs), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
 
@@ -86,26 +69,19 @@ class Trainer:
         self, state: train_state.TrainState, batch: Dict[str, jnp.ndarray]
     ) -> jnp.ndarray:
         """Evaluates the model on a batch without updating parameters."""
-        loss, _ = self._compute_loss(state.params, batch)
+        loss, _ = self.loss_fn(self.model, state.params, batch)
         return loss
 
-    def train(
-        self,
-        train_dataloader: DataLoader,
-        val_dataloader: DataLoader,
-        batch_size: int,
-        num_train_steps: int,
-        val_batches: int,
-    ) -> None:
+    def train(self) -> None:
         """Runs the main training loop."""
 
         state = self.state
 
-        for step in trange(num_train_steps, desc="Training"):
+        for step in trange(self.config.steps, desc="Training"):
             if step % 100 == 0:
                 val_losses = []
-                for _ in range(val_batches):
-                    val_batch_np = val_dataloader.sample(batch_size)
+                for _ in range(self.config.val_batches):
+                    val_batch_np = self.val_loader.sample(self.config.batch_size)
                     val_batch = {k: jnp.array(v) for k, v in val_batch_np.items()}
 
                     # Evaluate using the current state's parameters
@@ -117,7 +93,7 @@ class Trainer:
                     self.logger.log({"val/loss": avg_val_loss}, step=step)
 
             # Sample a new random batch each step and convert to JAX arrays
-            batch_np = train_dataloader.sample(batch_size)
+            batch_np = self.train_loader.sample(self.config.batch_size)
             batch = {k: jnp.array(v) for k, v in batch_np.items()}
 
             state, logs = self.train_step(state, batch)
@@ -134,8 +110,8 @@ class Trainer:
         self.state = state
 
         val_losses = []
-        for _ in range(val_batches):
-            val_batch_np = val_dataloader.sample(batch_size)
+        for _ in range(self.config.val_batches):
+            val_batch_np = self.val_loader.sample(self.config.batch_size)
             val_batch = {k: jnp.array(v) for k, v in val_batch_np.items()}
 
             # Evaluate using the current state's parameters
