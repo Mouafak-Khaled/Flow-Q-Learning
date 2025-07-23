@@ -15,7 +15,10 @@ args = parser.parse_args()
 config = build_config_from_args(args)
 
 real_task = OfflineTaskWithRealEvaluations(
-    config.buffer_size, config.env_name, config.data_directory, num_evaluation_envs=config.eval_episodes
+    config.buffer_size,
+    config.env_name,
+    config.data_directory,
+    num_evaluation_envs=config.eval_episodes,
 )
 
 example_batch = real_task.sample("train", 1)
@@ -27,20 +30,30 @@ agent = FQLAgent.create(
 )
 
 simulated_task = OfflineTaskWithSimulatedEvaluations(
-    config.env_name, config.buffer_size, config.data_directory, config.save_directory, num_evaluation_envs=config.eval_episodes
+    config.env_name,
+    config.buffer_size,
+    config.data_directory,
+    config.save_directory,
+    num_evaluation_envs=config.eval_episodes,
 )
 
-checkpoint_path = (
-    config.save_directory
-    / config.env_name
-    / "agent.pkl"
-)
+checkpoint_path = config.save_directory / config.env_name / "agent.pkl"
 if checkpoint_path.exists():
     with open(checkpoint_path, "rb") as f:
         state_dict = pickle.load(f)
     agent = flax.serialization.from_state_dict(agent, state_dict["agent"])
+else:
+    raise FileNotFoundError(
+        f"Checkpoint not found at {checkpoint_path}. Please ensure the agent has been trained."
+    )
 
-env_evaluator = EnvModelEvaluator(real_task, simulated_task, agent)
-env_evaluator.evaluate()
-real_task.close()
-simulated_task.close()
+env_model_evaluator = EnvModelEvaluator(
+    real_task=real_task,
+    simulated_task=simulated_task,
+    agent=agent,
+    seed=config.agent.seed,
+)
+
+env_model_evaluator.compare_trajectories()
+
+env_model_evaluator.close()

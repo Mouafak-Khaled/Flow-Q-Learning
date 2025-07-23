@@ -6,7 +6,7 @@ from datetime import datetime
 import flax
 from tqdm import tqdm
 
-from evaluator.evaluation import evaluate
+from evaluator.evaluation import evaluate_agent
 from fql.agents.fql import FQLAgent
 from task.task import Task
 from trainer.config import ExperimentConfig, TrainerConfig
@@ -118,7 +118,7 @@ class Experiment:
         return self.current_step == self.steps
 
     def evaluate(self) -> float:
-        eval_info = evaluate(agent=self.agent, env=self.task)
+        eval_info, _ = evaluate_agent(agent=self.agent, env=self.task)
 
         if self.logger:
             self.logger.log(eval_info, step=self.current_step, group="eval")
