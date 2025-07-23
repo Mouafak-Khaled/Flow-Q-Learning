@@ -7,8 +7,9 @@ import optax
 from flax import linen as nn
 from flax.training import train_state
 from tqdm import trange
-
 from wandb.sdk.wandb_run import Run
+
+from utils.data_loader import DataLoader
 
 
 class Trainer:
@@ -89,8 +90,13 @@ class Trainer:
         return loss
 
     def train(
-        self, train_dataset, val_dataset, batch_size, num_train_steps, val_batches
-    ):
+        self,
+        train_dataloader: DataLoader,
+        val_dataloader: DataLoader,
+        batch_size: int,
+        num_train_steps: int,
+        val_batches: int,
+    ) -> None:
         """Runs the main training loop."""
 
         state = self.state
@@ -99,7 +105,7 @@ class Trainer:
             if step % 100 == 0:
                 val_losses = []
                 for _ in range(val_batches):
-                    val_batch_np = val_dataset.sample(batch_size)
+                    val_batch_np = val_dataloader.sample(batch_size)
                     val_batch = {k: jnp.array(v) for k, v in val_batch_np.items()}
 
                     # Evaluate using the current state's parameters
@@ -111,22 +117,25 @@ class Trainer:
                     self.logger.log({"val/loss": avg_val_loss}, step=step)
 
             # Sample a new random batch each step and convert to JAX arrays
-            batch_np = train_dataset.sample(batch_size)
+            batch_np = train_dataloader.sample(batch_size)
             batch = {k: jnp.array(v) for k, v in batch_np.items()}
 
             state, logs = self.train_step(state, batch)
 
             if self.logger:
-                self.logger.log({
-                    "train/learning_rate": self.schedule(step),
-                    **{f"train/{k}": v for k, v in logs.items()}
-                }, step=step)
+                self.logger.log(
+                    {
+                        "train/learning_rate": self.schedule(step),
+                        **{f"train/{k}": v for k, v in logs.items()},
+                    },
+                    step=step,
+                )
 
         self.state = state
 
         val_losses = []
         for _ in range(val_batches):
-            val_batch_np = val_dataset.sample(batch_size)
+            val_batch_np = val_dataloader.sample(batch_size)
             val_batch = {k: jnp.array(v) for k, v in val_batch_np.items()}
 
             # Evaluate using the current state's parameters

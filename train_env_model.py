@@ -1,23 +1,24 @@
-import os
 from pathlib import Path
 
 import flax
 import ogbench
 import wandb
 
+from argparser import get_env_model_argparser
 from envmodel.baseline import BaselineEnvModel
 from envmodel.trainer import Trainer
-from fql.utils.datasets import Dataset
-from argparser import get_env_model_argparser
+from utils.data_loader import StepLoader
 
 args = get_env_model_argparser().parse_args()
 
-env, train_dataset, val_dataset = ogbench.make_env_and_datasets(args.env_name, args.data_directory)
-train_dataset = Dataset.create(**train_dataset)
-val_dataset = Dataset.create(**val_dataset)
+env, train_dataset, val_dataset = ogbench.make_env_and_datasets(
+    args.env_name, args.data_directory
+)
+train_dataloader = StepLoader(train_dataset)
+val_dataloader = StepLoader(val_dataset)
 
 # Sample once to get shapes
-sample_batch = train_dataset.sample(args.batch_size)
+sample_batch = train_dataloader.sample(args.batch_size)
 obs_sample = sample_batch["observations"]
 act_sample = sample_batch["actions"]
 
@@ -59,7 +60,9 @@ trainer = Trainer(
     logger=logger,
 )
 
-trainer.train(train_dataset, val_dataset, args.batch_size, args.steps, args.val_batches)
+trainer.train(
+    train_dataloader, val_dataloader, args.batch_size, args.steps, args.val_batches
+)
 
 save_dir = Path(args.save_directory) / args.env_name / "env_models"
 save_dir.mkdir(parents=True, exist_ok=True)
