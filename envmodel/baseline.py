@@ -1,4 +1,5 @@
 from typing import Any, Dict, Tuple
+import jax
 import jax.numpy as jnp
 from flax import linen as nn
 import optax
@@ -27,8 +28,8 @@ class BaselineEnvModel(nn.Module):
 
 
 def baseline_loss(
-    model: nn.Module, params: Any, batch: Dict[str, jnp.ndarray]
-) -> Tuple[jnp.ndarray, Dict[str, jnp.ndarray]]:
+    model: nn.Module, params: Any, rng: jax.Array, batch: Dict[str, jnp.ndarray]
+) -> Tuple[jnp.ndarray, Tuple[Dict[str, jnp.ndarray], jax.Array]]:
     """Computes the total loss for a given batch."""
 
     pred_next_obs, pred_terminals = model.apply(params, **batch)
@@ -48,4 +49,4 @@ def baseline_loss(
         "loss": loss,
     }
 
-    return loss, logs
+    return loss, (logs, rng)

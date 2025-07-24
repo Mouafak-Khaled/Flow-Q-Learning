@@ -13,7 +13,7 @@ from envmodel.config import TrainerConfig
 from utils.data_loader import DataLoader
 
 LossFn = Callable[
-    [nn.Module, Any, Dict[str, jnp.ndarray]], Tuple[jnp.ndarray, Dict[str, jnp.ndarray]]
+    [nn.Module, Any, Dict[str, jnp.ndarray]], Tuple[jnp.ndarray, Tuple[Dict[str, jnp.ndarray], jax.Array]]
 ]
 
 
@@ -56,9 +56,9 @@ class Trainer:
         """Performs a single training step (forward pass, loss calculation, gradients, update)."""
 
         def loss_fn(params):
-            return self.loss_fn(self.model, params, batch)
+            return self.loss_fn(self.model, params, self.rng, batch)
 
-        (loss, logs), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
+        (loss, (logs, self.rng)), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
 
         new_state = state.apply_gradients(grads=grads)
 
@@ -69,7 +69,7 @@ class Trainer:
         self, state: train_state.TrainState, batch: Dict[str, jnp.ndarray]
     ) -> jnp.ndarray:
         """Evaluates the model on a batch without updating parameters."""
-        loss, _ = self.loss_fn(self.model, state.params, batch)
+        loss, (_, self.rng) = self.loss_fn(self.model, state.params, self.rng, batch)
         return loss
 
     def train(self) -> None:
