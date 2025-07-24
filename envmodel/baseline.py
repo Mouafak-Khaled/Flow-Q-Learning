@@ -29,7 +29,11 @@ class BaselineEnvModel(nn.Module):
 
 
 def baseline_loss(
-    model: nn.Module, params: Any, rng: jax.Array, batch: Dict[str, jnp.ndarray]
+    model: nn.Module,
+    params: Any,
+    rng: jax.Array,
+    batch: Dict[str, jnp.ndarray],
+    termination_weight: float,
 ) -> Tuple[jnp.ndarray, Tuple[Dict[str, jnp.ndarray], jax.Array]]:
     """Computes the total loss for a given batch."""
 
@@ -40,13 +44,20 @@ def baseline_loss(
     )
     terminated_loss = optax.sigmoid_binary_cross_entropy(
         logits=jnp.squeeze(pred_terminals), labels=1 + batch["rewards"]
-    ).mean()
+    )
+    terminated_loss_true = jnp.where(batch["rewards"] == 0, terminated_loss, 0.0)
+    terminated_loss_false = jnp.where(batch["rewards"] != 0, terminated_loss, 0.0)
+    terminated_loss = jnp.mean(
+        termination_weight * terminated_loss_true + terminated_loss_false
+    ) / (termination_weight + 1)
 
     loss = next_observation_loss + terminated_loss
 
     logs = {
         "next_observation_loss": next_observation_loss,
         "terminated_loss": terminated_loss,
+        "termination_loss_true": jnp.mean(terminated_loss_true),
+        "termination_loss_false": jnp.mean(terminated_loss_false),
         "loss": loss,
     }
 
