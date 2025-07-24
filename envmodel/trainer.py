@@ -13,7 +13,8 @@ from envmodel.config import TrainerConfig
 from utils.data_loader import DataLoader
 
 LossFn = Callable[
-    [nn.Module, Any, Dict[str, jnp.ndarray]], Tuple[jnp.ndarray, Tuple[Dict[str, jnp.ndarray], jax.Array]]
+    [nn.Module, Any, jax.Array, Dict[str, jnp.ndarray]],
+    Tuple[jnp.ndarray, Tuple[Dict[str, jnp.ndarray], jax.Array]],
 ]
 
 
@@ -37,7 +38,7 @@ class Trainer:
         self.rng = jax.random.PRNGKey(self.config.seed)
 
         sample_batch = self.train_loader.sample(self.config.batch_size)
-        self.params = self.model.init(self.rng, **sample_batch)
+        self.params = self.model.init(self.rng, **sample_batch, key=self.rng)
 
         self.schedule = optax.cosine_decay_schedule(
             init_value=self.config.init_learning_rate,
@@ -52,25 +53,26 @@ class Trainer:
     @partial(jax.jit, static_argnums=0)
     def train_step(
         self, state: train_state.TrainState, batch: Dict[str, jnp.ndarray]
-    ) -> Tuple[train_state.TrainState, jnp.ndarray]:
+    ) -> Tuple[train_state.TrainState, jnp.ndarray, jax.Array]:
         """Performs a single training step (forward pass, loss calculation, gradients, update)."""
 
         def loss_fn(params):
             return self.loss_fn(self.model, params, self.rng, batch)
 
-        (loss, (logs, self.rng)), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
+        (loss, (logs, rng)), grads = jax.value_and_grad(loss_fn, has_aux=True)(
+            state.params
+        )
 
         new_state = state.apply_gradients(grads=grads)
-
-        return new_state, logs
+        return new_state, logs, rng
 
     @partial(jax.jit, static_argnums=0)
     def eval_step(
         self, state: train_state.TrainState, batch: Dict[str, jnp.ndarray]
-    ) -> jnp.ndarray:
+    ) -> Tuple[jnp.ndarray, jax.Array]:
         """Evaluates the model on a batch without updating parameters."""
-        loss, (_, self.rng) = self.loss_fn(self.model, state.params, self.rng, batch)
-        return loss
+        loss, (_, rng) = self.loss_fn(self.model, state.params, self.rng, batch)
+        return loss, rng
 
     def train(self) -> None:
         """Runs the main training loop."""
@@ -85,7 +87,7 @@ class Trainer:
                     val_batch = {k: jnp.array(v) for k, v in val_batch_np.items()}
 
                     # Evaluate using the current state's parameters
-                    val_loss = self.eval_step(state, val_batch)
+                    val_loss, self.rng = self.eval_step(state, val_batch)
                     val_losses.append(val_loss)
 
                 avg_val_loss = jnp.mean(jnp.array(val_losses))
@@ -96,7 +98,7 @@ class Trainer:
             batch_np = self.train_loader.sample(self.config.batch_size)
             batch = {k: jnp.array(v) for k, v in batch_np.items()}
 
-            state, logs = self.train_step(state, batch)
+            state, logs, self.rng = self.train_step(state, batch)
 
             if self.logger:
                 self.logger.log(
@@ -115,7 +117,7 @@ class Trainer:
             val_batch = {k: jnp.array(v) for k, v in val_batch_np.items()}
 
             # Evaluate using the current state's parameters
-            val_loss = self.eval_step(state, val_batch)
+            val_loss, self.rng = self.eval_step(state, val_batch)
             val_losses.append(val_loss)
 
         avg_val_loss = jnp.mean(jnp.array(val_losses))

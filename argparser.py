@@ -2,8 +2,8 @@ import argparse
 from ast import literal_eval
 from pathlib import Path
 
-from trainer.config import AgentConfig, TrainerConfig
 from envmodel.config import TrainerConfig as EnvModelTrainerConfig
+from trainer.config import AgentConfig, TrainerConfig
 
 
 def get_argparser() -> argparse.ArgumentParser:
@@ -179,7 +179,17 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--model.hidden_dim", type=int, default=128, help="The dimension of hidden layers."
+        "--model.hidden_dim",
+        type=int,
+        default=128,
+        help="The dimension of hidden layers.",
+    )
+
+    parser.add_argument(
+        "--model.latent_dim",
+        type=int,
+        default=4,
+        help="The dimension of latent representation.",
     )
 
     parser.add_argument(
@@ -243,6 +253,8 @@ def build_env_model_config_from_args(args: argparse.Namespace) -> EnvModelTraine
     filtered_trainer_kwargs = {
         k: v for k, v in trainer_kwargs.items() if k in trainer_config_fields
     }
-    trainer_config = EnvModelTrainerConfig(**filtered_trainer_kwargs, model_config=model_config)
+    trainer_config = EnvModelTrainerConfig(
+        **filtered_trainer_kwargs, model_config=model_config
+    )
 
     return trainer_config

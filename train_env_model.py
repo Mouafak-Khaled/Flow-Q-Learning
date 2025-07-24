@@ -7,8 +7,9 @@ import wandb
 
 from argparser import build_env_model_config_from_args, get_env_model_argparser
 from envmodel.baseline import BaselineEnvModel, baseline_loss
+from envmodel.initial_observation import InitialObservationEnvModel, vae_loss
 from envmodel.trainer import Trainer
-from utils.data_loader import StepLoader
+from utils.data_loader import StepLoader, InitialObservationLoader
 
 args = get_env_model_argparser().parse_args()
 config = build_env_model_config_from_args(args)
@@ -32,6 +33,21 @@ if config.model == "baseline":
     )
 
     loss_fn = baseline_loss
+
+elif config.model == "initial_observation":
+    train_dataloader = InitialObservationLoader(train_dataset)
+    val_dataloader = InitialObservationLoader(val_dataset)
+
+    # Sample once to get shapes
+    sample_batch = train_dataloader.sample(config.batch_size)
+
+    env_model = InitialObservationEnvModel(
+        observation_dimension=sample_batch["observations"].shape[-1],
+        latent_dimension=config.model_config["latent_dim"],
+        hidden_size=config.model_config["hidden_dim"],
+    )
+
+    loss_fn = vae_loss
 else:
     raise ValueError(f"Unknown model type: {args.model}")
 

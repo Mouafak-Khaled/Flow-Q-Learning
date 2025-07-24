@@ -1,8 +1,9 @@
 from typing import Any, Dict, Tuple
+
 import jax
 import jax.numpy as jnp
-from flax import linen as nn
 import optax
+from flax import linen as nn
 
 
 class BaselineEnvModel(nn.Module):
