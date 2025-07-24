@@ -34,6 +34,7 @@ def baseline_loss(
     rng: jax.Array,
     batch: Dict[str, jnp.ndarray],
     termination_weight: float,
+    termination_true_weight: float,
 ) -> Tuple[jnp.ndarray, Tuple[Dict[str, jnp.ndarray], jax.Array]]:
     """Computes the total loss for a given batch."""
 
@@ -48,10 +49,10 @@ def baseline_loss(
     terminated_loss_true = jnp.where(batch["rewards"] == 0, terminated_loss, 0.0)
     terminated_loss_false = jnp.where(batch["rewards"] != 0, terminated_loss, 0.0)
     terminated_loss = jnp.mean(
-        termination_weight * terminated_loss_true + terminated_loss_false
-    ) / (termination_weight + 1)
+        termination_true_weight * terminated_loss_true + terminated_loss_false
+    ) / (termination_true_weight + 1)
 
-    loss = next_observation_loss + terminated_loss
+    loss = (next_observation_loss + termination_weight * terminated_loss) / (1 + termination_weight)
 
     logs = {
         "next_observation_loss": next_observation_loss,

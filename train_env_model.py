@@ -35,7 +35,9 @@ if config.model == "baseline":
     )
 
     loss_fn = partial(
-        baseline_loss, termination_weight=config.model_config["termination_weight"]
+        baseline_loss,
+        termination_weight=config.model_config["termination_weight"],
+        termination_true_weight=config.model_config["termination_true_weight"],
     )
 elif config.model == "multistep":
     train_dataloader = EpisodeLoader(train_dataset)
@@ -50,7 +52,9 @@ elif config.model == "multistep":
     )
 
     loss_fn = partial(
-        baseline_loss, termination_weight=config.model_config["termination_weight"]
+        baseline_loss,
+        termination_weight=config.model_config["termination_weight"],
+        termination_true_weight=config.model_config["termination_true_weight"],
     )
 elif config.model == "initial_observation":
     train_dataloader = InitialObservationLoader(train_dataset)
