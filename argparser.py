@@ -175,7 +175,14 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--model", type=str, default="baseline", help="Th environment model to be used."
+        "--seed", type=int, default=0, help="Random seed for the environment model."
+    )
+
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="baseline",
+        help="The environment model to be used.",
     )
 
     parser.add_argument(
