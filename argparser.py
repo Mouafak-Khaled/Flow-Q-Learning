@@ -175,7 +175,14 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--model", type=str, default="baseline", help="Th environment model to be used."
+        "--seed", type=int, default=0, help="Random seed for the environment model."
+    )
+
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="baseline",
+        help="The environment model to be used.",
     )
 
     parser.add_argument(
@@ -190,6 +197,13 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
         type=int,
         default=4,
         help="The dimension of latent representation.",
+    )
+
+    parser.add_argument(
+        "--model.termination_weight",
+        type=float,
+        default=500.0,
+        help="Weight for the termination loss in the baseline model.",
     )
 
     parser.add_argument(

@@ -1,4 +1,5 @@
 from dataclasses import asdict
+from functools import partial
 from pathlib import Path
 
 import flax
@@ -9,7 +10,7 @@ from argparser import build_env_model_config_from_args, get_env_model_argparser
 from envmodel.baseline import BaselineEnvModel, baseline_loss
 from envmodel.initial_observation import InitialObservationEnvModel, vae_loss
 from envmodel.trainer import Trainer
-from utils.data_loader import StepLoader, InitialObservationLoader
+from utils.data_loader import InitialObservationLoader, StepLoader
 
 args = get_env_model_argparser().parse_args()
 config = build_env_model_config_from_args(args)
@@ -32,7 +33,9 @@ if config.model == "baseline":
         hidden_size=config.model_config["hidden_dim"],
     )
 
-    loss_fn = baseline_loss
+    loss_fn = partial(
+        baseline_loss, termination_weight=config.model_config["termination_weight"]
+    )
 
 elif config.model == "initial_observation":
     train_dataloader = InitialObservationLoader(train_dataset)

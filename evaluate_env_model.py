@@ -51,7 +51,7 @@ env_model_evaluator = EnvModelEvaluator(
     real_task=real_task,
     simulated_task=simulated_task,
     agent=agent,
-    seed=config.agent.seed,
+    seed=config.seed,
 )
 
 env_model_evaluator.compare_trajectories()
