@@ -21,7 +21,7 @@ class EnvModelEvaluator:
         self.agent = agent
         self.seed = seed
 
-    def compare_trajectories(self) -> None:
+    def evaluate(self) -> None:
         real_info, real_transitions = evaluate_agent(
             self.agent,
             self.real_task,

@@ -5,6 +5,7 @@ import flax
 import jax
 import jax.numpy as jnp
 import numpy as np
+import yaml
 
 from envmodel.baseline import BaselineEnvModel
 from fql.envs.env_utils import make_env_and_datasets
@@ -16,9 +17,10 @@ class OfflineTaskWithSimulatedEvaluations(Task):
     def __init__(
         self,
         env_name: str,
-        buffer_size: int,
-        data_directory: Path,
-        save_directory: Path,
+        model: str = "baseline",
+        data_directory: Path = None,
+        save_directory: Path = Path("exp/"),
+        buffer_size: int = 2000000,
         num_evaluation_envs: int = 50,
         max_episode_steps: int = 1000,
     ):
@@ -36,21 +38,34 @@ class OfflineTaskWithSimulatedEvaluations(Task):
             dict(self.train_dataset), size=max(buffer_size, self.train_dataset.size + 1)
         )
 
+        env_model_config_path = (
+            save_directory / env_name / "env_models" / f"{model}_config.yaml"
+        )
+        if env_model_config_path.exists():
+            with open(env_model_config_path, "r") as f:
+                model_config = yaml.unsafe_load(f)
+        else:
+            raise FileNotFoundError(
+                f"Configuration file not found at {env_model_config_path}. Please ensure the configuration has been set."
+            )
+
         example_batch = self.train_dataset.sample(1)
         self.model = BaselineEnvModel(
             observation_dimension=example_batch["observations"].shape[-1],
             action_dimension=example_batch["actions"].shape[-1],
-            hidden_size=128,
+            hidden_size=model_config["hidden_dim"],
         )
-        self.params = self.model.init(
-            jax.random.PRNGKey(0),
-            example_batch["observations"],
-            example_batch["actions"],
-        )
-        env_model_path = save_directory / env_name / "env_models" / "baseline.pt"
+        rng = jax.random.PRNGKey(0)
+        self.params = self.model.init(rng, **example_batch, key=rng)
+
+        env_model_path = save_directory / env_name / "env_models" / f"{model}.pt"
         if env_model_path.exists():
             with open(env_model_path, "rb") as f:
                 params_bytes = f.read()
+        else:
+            raise FileNotFoundError(
+                f"Model file not found at {env_model_path}. Please ensure the model has been trained."
+            )
         self.params = flax.serialization.from_bytes(self.params, params_bytes)
 
         self.current_obs = None
@@ -69,9 +84,16 @@ class OfflineTaskWithSimulatedEvaluations(Task):
             observations = [observation]
             infos = [info]
         elif seed is None:
-            observations, infos = zip(*[eval_env.reset() for eval_env in self.eval_envs])
+            observations, infos = zip(
+                *[eval_env.reset() for eval_env in self.eval_envs]
+            )
         else:
-            observations, infos = zip(*[eval_env.reset(seed=seed + i) for i, eval_env in enumerate(self.eval_envs)])
+            observations, infos = zip(
+                *[
+                    eval_env.reset(seed=seed + i)
+                    for i, eval_env in enumerate(self.eval_envs)
+                ]
+            )
 
         merged_observations = np.array(observations)
         merged_infos = list(infos)
@@ -100,7 +122,7 @@ class OfflineTaskWithSimulatedEvaluations(Task):
 
         for i in range(len(self.eval_envs)):
             if self.invalidate[i]:
-                infos[i]['invalid'] = True
+                infos[i]["invalid"] = True
             if terminations[i] or truncations[i]:
                 self.invalidate[i] = True
 

@@ -48,7 +48,10 @@ seeds = random.sample(range(10000), args.number_of_seeds)
 combinations = list(itertools.product(alpha_values, seeds))
 
 task = OfflineTaskWithRealEvaluations(
-    config.buffer_size, config.env_name, config.data_directory, num_evaluation_envs=config.eval_episodes
+    config.env_name,
+    buffer_size=config.buffer_size,
+    data_directory=config.data_directory,
+    num_evaluation_envs=config.eval_episodes,
 )
 
 if args.single_experiment:
