@@ -198,12 +198,12 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--model.termination_weight",
         type=float,
-        default=500.0,
+        default=30.0,
         help="Weight for the termination loss in the baseline model.",
     )
 
     parser.add_argument(
-        "--steps", type=int, default=2000, help="The number of training steps."
+        "--steps", type=int, default=10000, help="The number of training steps."
     )
     parser.add_argument(
         "--env_name",

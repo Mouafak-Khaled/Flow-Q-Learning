@@ -23,7 +23,7 @@ class BaselineEnvModel(nn.Module):
         x = nn.relu(nn.Dense(self.hidden_size)(x))
         x = nn.relu(nn.Dense(self.hidden_size)(x))
         next_observations = nn.Dense(self.observation_dimension)(x) + observations
-        terminations = nn.Dense(1)(x)
+        terminations = nn.Dense(1)(next_observations)
 
         return next_observations, terminations
 
