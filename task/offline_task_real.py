@@ -1,14 +1,21 @@
 from pathlib import Path
 from typing import Literal
 
+import numpy as np
+
 from fql.envs.env_utils import make_env_and_datasets
 from fql.utils.datasets import Dataset, ReplayBuffer
 from task.task import Task
-import numpy as np
 
 
 class OfflineTaskWithRealEvaluations(Task):
-    def __init__(self, buffer_size: int, env_name: str, data_directory: Path = None, num_evaluation_envs: int = 50):
+    def __init__(
+        self,
+        env_name: str,
+        buffer_size: int = 2000000,
+        data_directory: Path = None,
+        num_evaluation_envs: int = 50,
+    ):
         """
         Initialize the task with an evaluation environment.
 
@@ -41,9 +48,16 @@ class OfflineTaskWithRealEvaluations(Task):
             observations = [observation]
             infos = [info]
         elif seed is None:
-            observations, infos = zip(*[eval_env.reset() for eval_env in self.eval_envs])
+            observations, infos = zip(
+                *[eval_env.reset() for eval_env in self.eval_envs]
+            )
         else:
-            observations, infos = zip(*[eval_env.reset(seed=seed + i) for i, eval_env in enumerate(self.eval_envs)])
+            observations, infos = zip(
+                *[
+                    eval_env.reset(seed=seed + i)
+                    for i, eval_env in enumerate(self.eval_envs)
+                ]
+            )
 
         merged_observations = np.array(observations)
         merged_infos = list(infos)
@@ -52,12 +66,14 @@ class OfflineTaskWithRealEvaluations(Task):
         return merged_observations, merged_infos
 
     def step(self, actions):
-        results = [eval_env.step(action) for action, eval_env in zip(actions, self.eval_envs)]
+        results = [
+            eval_env.step(action) for action, eval_env in zip(actions, self.eval_envs)
+        ]
         next_observations, rewards, terminations, truncations, infos = zip(*results)
 
         for i in range(len(self.eval_envs)):
             if self.invalidate[i]:
-                infos[i]['invalid'] = True
+                infos[i]["invalid"] = True
             if terminations[i] or truncations[i]:
                 self.invalidate[i] = True
 
@@ -66,7 +82,13 @@ class OfflineTaskWithRealEvaluations(Task):
         merged_terminations = np.array(terminations)
         merged_truncations = np.array(truncations)
         merged_infos = list(infos)
-        return merged_next_observations, merged_rewards, merged_terminations, merged_truncations, merged_infos
+        return (
+            merged_next_observations,
+            merged_rewards,
+            merged_terminations,
+            merged_truncations,
+            merged_infos,
+        )
 
     def close(self):
         for eval_env in self.eval_envs:

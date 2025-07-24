@@ -175,10 +175,6 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--seed", type=int, default=0, help="Random seed for the environment model."
-    )
-
-    parser.add_argument(
         "--model",
         type=str,
         default="baseline",
