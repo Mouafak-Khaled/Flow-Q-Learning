@@ -57,9 +57,6 @@ class OfflineTaskWithSimulatedEvaluations(Task):
             hidden_size=model_config["hidden_dim"],
         )
 
-        rng = jax.random.PRNGKey(0)
-        self.params = self.model.init(rng, **example_batch, key=rng)
-
         env_model_path = save_directory / env_name / "env_models" / f"{model}.pt"
         if env_model_path.exists():
             with open(env_model_path, "rb") as f:
@@ -68,20 +65,15 @@ class OfflineTaskWithSimulatedEvaluations(Task):
             raise FileNotFoundError(
                 f"Model file not found at {env_model_path}. Please ensure the model has been trained."
             )
+
         if model == "baseline":
             self.params = flax.serialization.from_bytes(self.params, params_bytes)
         elif model == "multistep":
-            rng = jax.random.PRNGKey(0)
-
-            multistep_model = MultistepEnvModel(
-                observation_dimension=example_batch["observations"].shape[-1],
-                action_dimension=example_batch["actions"].shape[-1],
-                hidden_size=model_config["hidden_dim"],
-            )
-            multistep_params = multistep_model.init(rng, **example_batch, key=rng)
-            # TODO: This is a workaround, we need to fix the model structure probably
-            #       probably by giving more meaningful names to the flax modules
-            self.params["params"] = flax.serialization.from_bytes(multistep_params, params_bytes)["params"]["ScanCell_0"]["cell"]
+            self.params = {
+                # TODO: This is a workaround, we need to fix the model structure probably
+                #       probably by giving more meaningful names to the flax modules
+                "params": flax.serialization.from_bytes(None, params_bytes)["params"]["ScanCell_0"]["cell"]
+            }
         else:
             raise ValueError(f"Unknown model type: {model}")
 

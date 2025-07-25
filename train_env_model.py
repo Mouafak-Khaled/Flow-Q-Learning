@@ -5,6 +5,7 @@ from pathlib import Path
 import flax
 import ogbench
 import wandb
+import yaml
 
 from argparser import build_env_model_config_from_args, get_env_model_argparser
 from envmodel.baseline import BaselineEnvModel, baseline_loss
@@ -95,6 +96,11 @@ trainer.train()
 
 save_dir = Path(config.save_directory) / config.env_name / "env_models"
 save_dir.mkdir(parents=True, exist_ok=True)
+
+config_path = save_dir / f"{config.model}_config.yaml"
+with open(config_path, "w") as f:
+    yaml.dump(config.model_config, f)
+
 model_path = save_dir / f"{config.model}.pt"
 with open(model_path, "wb") as f:
     f.write(flax.serialization.to_bytes(trainer.state.params))
