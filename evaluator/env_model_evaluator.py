@@ -56,7 +56,7 @@ class EnvModelEvaluator:
         sim_observations = np.array(sim_observations)
 
         i = 0
-        while not np.any(real_mask[i]) and not np.any(sim_mask[i]):
+        while not np.any(real_mask[i]):
             i += 1
 
         mae = np.abs(real_observations[:i] - sim_observations[:i]).mean(axis=2)

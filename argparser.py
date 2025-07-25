@@ -196,10 +196,24 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--model.termination_weight",
+        "--model.termination_true_weight",
         type=float,
         default=30.0,
+        help="Weight for the true class in the termination loss in the baseline model.",
+    )
+
+    parser.add_argument(
+        "--model.termination_weight",
+        type=float,
+        default=1.0,
         help="Weight for the termination loss in the baseline model.",
+    )
+
+    parser.add_argument(
+        "--model.sequence_length",
+        type=int,
+        default=128,
+        help="The length of sequences for the multistep model.",
     )
 
     parser.add_argument(
