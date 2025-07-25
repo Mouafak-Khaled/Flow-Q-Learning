@@ -60,7 +60,7 @@ class StrategyEvaluator:
 
     def plot(self):
         sns.set_theme(style="darkgrid")
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(20, 12))
         for experiment in self.experiments.values():
             data = experiment.get_data()
             sns.lineplot(
@@ -82,7 +82,7 @@ class StrategyEvaluator:
         plt.xlabel("Step")
         plt.ylabel("Success Rate")
         plt.title(get_strategy_title(self.strategy))
-        plt.legend()
+        # plt.legend()
         plt.savefig(f"report/{get_strategy_title(self.strategy)}.png")
         plt.close()
 
