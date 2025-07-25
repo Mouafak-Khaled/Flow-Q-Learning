@@ -61,28 +61,25 @@ class StrategyEvaluator:
     def plot(self):
         sns.set_theme(style="darkgrid")
         plt.figure(figsize=(20, 12))
-        for experiment in self.experiments.values():
+        for config, experiment in self.experiments.items():
+            stopped_at = self.stopping_step.get(config, self.config.steps)
             data = experiment.get_data()
             sns.lineplot(
                 data=data,
                 x="step",
                 y="success",
-                label=experiment.get_label(),
                 linestyle="--"
-                if experiment.current_step in self.stopping_step
-                else "-",
             )
-            if experiment.current_step in self.stopping_step:
-                sns.lineplot(
-                    data=data[data["step"] <= experiment.current_step],
-                    x="step",
-                    y="success",
-                    label=experiment.get_label(),
-                )
+            sns.lineplot(
+                data=data[data["step"] <= experiment.current_step],
+                x="step",
+                y="success",
+                label=experiment.get_label()
+            )
         plt.xlabel("Step")
         plt.ylabel("Success Rate")
         plt.title(get_strategy_title(self.strategy))
-        # plt.legend()
+        plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
         plt.savefig(f"report/{get_strategy_title(self.strategy)}.png")
         plt.close()
 
