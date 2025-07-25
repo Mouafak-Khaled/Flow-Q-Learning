@@ -87,10 +87,11 @@ class StrategyEvaluator:
         plt.ylabel("Success Rate")
         plt.title(get_strategy_title(self.strategy))
         plt.legend()
-        plt.show()
+        plt.savefig(f"report/{get_strategy_title(self.strategy)}.png")
+        plt.close()
 
 def get_strategy_title(strategy: HpoStrategy) -> str:
     if isinstance(strategy, SuccessiveHalving):
-        return fr"Successive Halving $(f={strategy.fraction}, h={strategy.history_length})$"
+        return fr"Successive Halving $(f={strategy.fraction}, h={strategy.history_length}, t={strategy.total_evaluations})$"
     else:
         return "Unknown Strategy"

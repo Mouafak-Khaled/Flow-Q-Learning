@@ -31,6 +31,13 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--total_evaluations",
+    type=int,
+    default=200,
+    help="Total number of evaluations to perform.",
+)
+
+parser.add_argument(
     "--fraction",
     type=float,
     default=0.5,
@@ -65,7 +72,7 @@ experiment_configs = [
 # create evaluator
 strategy = SuccessiveHalving(
     population=experiment_configs,
-    total_evaluations=0,
+    total_evaluations=args.total_evaluations,
     fraction=args.fraction,
     history_length=args.history_length,
 )
