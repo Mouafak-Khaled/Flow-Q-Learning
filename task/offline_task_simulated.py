@@ -8,6 +8,7 @@ import numpy as np
 import yaml
 
 from envmodel.baseline import BaselineEnvModel
+from envmodel.multistep import MultistepEnvModel
 from fql.envs.env_utils import make_env_and_datasets
 from fql.utils.datasets import Dataset, ReplayBuffer
 from task.task import Task
@@ -55,6 +56,7 @@ class OfflineTaskWithSimulatedEvaluations(Task):
             action_dimension=example_batch["actions"].shape[-1],
             hidden_size=model_config["hidden_dim"],
         )
+
         rng = jax.random.PRNGKey(0)
         self.params = self.model.init(rng, **example_batch, key=rng)
 
@@ -66,7 +68,22 @@ class OfflineTaskWithSimulatedEvaluations(Task):
             raise FileNotFoundError(
                 f"Model file not found at {env_model_path}. Please ensure the model has been trained."
             )
-        self.params = flax.serialization.from_bytes(self.params, params_bytes)
+        if model == "baseline":
+            self.params = flax.serialization.from_bytes(self.params, params_bytes)
+        elif model == "multistep":
+            rng = jax.random.PRNGKey(0)
+
+            multistep_model = MultistepEnvModel(
+                observation_dimension=example_batch["observations"].shape[-1],
+                action_dimension=example_batch["actions"].shape[-1],
+                hidden_size=model_config["hidden_dim"],
+            )
+            multistep_params = multistep_model.init(rng, **example_batch, key=rng)
+            # TODO: This is a workaround, we need to fix the model structure probably
+            #       probably by giving more meaningful names to the flax modules
+            self.params["params"] = flax.serialization.from_bytes(multistep_params, params_bytes)["params"]["ScanCell_0"]["cell"]
+        else:
+            raise ValueError(f"Unknown model type: {model}")
 
         self.current_obs = None
         self.episode_steps = 0
