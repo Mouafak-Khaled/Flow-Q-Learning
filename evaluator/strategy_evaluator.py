@@ -3,8 +3,8 @@ import seaborn as sns
 
 from evaluator.experiment_from_file import ExperimentFromFile
 from hpo.strategy import HpoStrategy
-from trainer.config import TrainerConfig
 from hpo.successive_halving import SuccessiveHalving
+from trainer.config import TrainerConfig
 
 
 class StrategyEvaluator:
@@ -55,7 +55,7 @@ class StrategyEvaluator:
             for config in self.candidates:
                 if config not in new_candidates:
                     self.stopping_step[config] = self.experiments[config].current_step
-            
+
             self.candidates = new_candidates
 
     def plot(self):
@@ -64,28 +64,27 @@ class StrategyEvaluator:
         for config, experiment in self.experiments.items():
             stopped_at = self.stopping_step.get(config, self.config.steps)
             data = experiment.get_data()
+            sns.lineplot(data=data, x="step", y="success", linestyle="--", alpha=0.4)
             sns.lineplot(
-                data=data,
+                data=data[data["step"] <= stopped_at],
                 x="step",
                 y="success",
-                linestyle="--",
-                alpha=0.4
-            )
-            sns.lineplot(
-                data=data[data["step"] <= experiment.current_step],
-                x="step",
-                y="success",
-                label=experiment.get_label()
+                label=experiment.get_label(),
             )
         plt.xlabel("Step")
         plt.ylabel("Success Rate")
         plt.title(get_strategy_title(self.strategy))
-        plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
-        plt.savefig(f"report/{get_strategy_title(self.strategy)}.png", bbox_inches="tight", dpi=300)
+        plt.legend(bbox_to_anchor=(1.02, 1), loc="upper left", borderaxespad=0)
+        plt.savefig(
+            f"report/{get_strategy_title(self.strategy)}.png",
+            bbox_inches="tight",
+            dpi=300,
+        )
         plt.close()
+
 
 def get_strategy_title(strategy: HpoStrategy) -> str:
     if isinstance(strategy, SuccessiveHalving):
-        return fr"Successive Halving $(f={strategy.fraction}, h={strategy.history_length}, t={strategy.total_evaluations})$"
+        return rf"Successive Halving $(f={strategy.fraction}, h={strategy.history_length}, t={strategy.total_evaluations})$"
     else:
         return "Unknown Strategy"
