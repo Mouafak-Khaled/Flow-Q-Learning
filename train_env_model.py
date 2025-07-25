@@ -11,7 +11,7 @@ from envmodel.baseline import BaselineEnvModel, baseline_loss
 from envmodel.initial_observation import InitialObservationEnvModel, vae_loss
 from envmodel.multistep import MultistepEnvModel
 from envmodel.trainer import Trainer
-from utils.data_loader import InitialObservationLoader, StepLoader, EpisodeLoader
+from utils.data_loader import InitialObservationLoader, StepLoader, MultistepLoader
 
 args = get_env_model_argparser().parse_args()
 config = build_env_model_config_from_args(args)
@@ -40,8 +40,8 @@ if config.model == "baseline":
         termination_true_weight=config.model_config["termination_true_weight"],
     )
 elif config.model == "multistep":
-    train_dataloader = EpisodeLoader(train_dataset)
-    val_dataloader = EpisodeLoader(val_dataset)
+    train_dataloader = MultistepLoader(train_dataset, sequence_length=config.model_config["sequence_length"])
+    val_dataloader = MultistepLoader(val_dataset, sequence_length=config.model_config["sequence_length"])
 
     sample_batch = train_dataloader.sample(config.batch_size)
 
