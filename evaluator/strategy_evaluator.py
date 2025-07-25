@@ -42,24 +42,20 @@ class StrategyEvaluator:
             # Evaluate experiments
             for config in self.candidates:
                 score = self.experiments[config].evaluate(self.config.eval_episodes)
-                self.strategy.update(self.experiments[config], score)
-
-            unfinished_candidates = [
-                config
-                for config in self.candidates
-                if config not in self.finished_candidates
-            ]
-            if len(unfinished_candidates) == 0:
-                break
+                self.strategy.update(config, score)
 
             # Sample new candidates based on the strategy
             new_candidates = self.strategy.sample()
+
+            done = [config in self.finished_candidates for config in new_candidates]
+            if all(done):
+                break
 
             # Stop experiments that are no longer candidates
             for config in self.candidates:
                 if config not in new_candidates:
                     self.stopping_step[config] = self.experiments[config].current_step
-
+            
             self.candidates = new_candidates
 
     def plot(self):

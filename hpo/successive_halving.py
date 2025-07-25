@@ -98,7 +98,10 @@ class SuccessiveHalving(HpoStrategy):
 
         best_candidates_with_scores = sorted_population[:new_length]
         self.population = [candidate for candidate, _ in best_candidates_with_scores]
-        self.candidate_scores = defaultdict(list, best_candidates_with_scores)
+        self.candidate_scores = defaultdict(list, {
+            candidate: self.candidate_scores[candidate]
+            for candidate, _ in best_candidates_with_scores
+        })
         return self.population
 
     def compute_halving_milestones(self) -> List[int]:
