@@ -68,7 +68,8 @@ class StrategyEvaluator:
                 data=data,
                 x="step",
                 y="success",
-                linestyle="--"
+                linestyle="--",
+                alpha=0.4
             )
             sns.lineplot(
                 data=data[data["step"] <= experiment.current_step],
