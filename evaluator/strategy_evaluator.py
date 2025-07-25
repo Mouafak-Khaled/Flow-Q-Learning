@@ -80,7 +80,7 @@ class StrategyEvaluator:
         plt.ylabel("Success Rate")
         plt.title(get_strategy_title(self.strategy))
         plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
-        plt.savefig(f"report/{get_strategy_title(self.strategy)}.png")
+        plt.savefig(f"report/{get_strategy_title(self.strategy)}.png", bbox_inches="tight", dpi=300)
         plt.close()
 
 def get_strategy_title(strategy: HpoStrategy) -> str:
