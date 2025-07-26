@@ -11,6 +11,8 @@ from trainer.config import ExperimentConfig
 # python evaluate_sensitivity.py --env_name=antsoccer-arena-navigate-singletask-task4-v0 \
 #        --save_directory=/work/dlclarge2/amriam-fql/exp/ \
 #        --number_of_seeds=2 --number_of_alphas=20
+# The values for `--number_of_seeds` and `--number_of_alphas` in addition to the seed
+# have to be the same as the ones used in the training script.
 
 # read arguments from command line
 parser = get_argparser()

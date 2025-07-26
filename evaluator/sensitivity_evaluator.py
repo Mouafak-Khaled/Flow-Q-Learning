@@ -4,6 +4,7 @@ import seaborn as sns
 
 from evaluator.experiment_from_file import ExperimentFromFile
 from trainer.config import ExperimentConfig, TrainerConfig
+from utils.tasks import get_task_filename, get_task_title
 
 
 class SensitivityEvaluator:
@@ -72,17 +73,11 @@ class SensitivityEvaluator:
         plt.xscale('log')
         plt.xlabel(r"$\alpha$")
         plt.ylabel("Success Rate")
-        plt.title(fr"Sensitivity Curve of $\alpha$ on the {self.get_task_name()} task.")
+        plt.title(fr"Sensitivity Curve of $\alpha$ on the {get_task_title(self.config.env_name)} task.")
         plt.legend()
         plt.savefig(
-            f"report/sensitivity_curve_{self.get_task_name().lower()}.png",
+            f"report/sensitivity_curve_{get_task_filename(self.config.env_name)}.png",
             bbox_inches="tight",
             dpi=300,
         )
         plt.close()
-
-    def get_task_name(self) -> str:
-        if self.config.env_name.startswith("cube"):
-            return "Cube"
-        elif self.config.env_name.startswith("antsoccer"):
-            return "Antsoccer"
