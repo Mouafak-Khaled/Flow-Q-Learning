@@ -1,4 +1,4 @@
-from typing import List
+from typing import Set
 
 from hpo.strategy import HpoStrategy
 from trainer.config import ExperimentConfig
@@ -11,5 +11,5 @@ class Identity(HpoStrategy):
     def update(self, candidate: ExperimentConfig, performance: float) -> None:
         pass
 
-    def sample(self) -> List[ExperimentConfig]:
+    def sample(self) -> Set[ExperimentConfig]:
         return self.population

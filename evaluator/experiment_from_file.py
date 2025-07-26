@@ -36,7 +36,7 @@ class ExperimentFromFile:
         return self.current_step >= self.max_steps
 
     def evaluate(self, num_episodes: int = 50) -> float:
-        return self.df[self.df["step"] == self.current_step]["success"]
+        return self.df[self.df["step"] == self.current_step]["success"].item()
 
     def get_label(self) -> str:
         return rf"$seed = {self.experiment_config.seed}, \alpha = {self.experiment_config.alpha:.2f}$"

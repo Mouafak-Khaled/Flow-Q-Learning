@@ -3,8 +3,9 @@ import seaborn as sns
 
 from evaluator.experiment_from_file import ExperimentFromFile
 from hpo.strategy import HpoStrategy
-from trainer.config import TrainerConfig
 from hpo.successive_halving import SuccessiveHalving
+from trainer.config import TrainerConfig
+from utils.tasks import get_task_filename, get_task_title
 
 
 class StrategyEvaluator:
@@ -24,7 +25,7 @@ class StrategyEvaluator:
         self.stopping_step = {}
         self.candidates = None
 
-        self.finished_candidates = []
+        self.finished_candidates = set()
         self.candidates = self.strategy.sample()
         for config in self.candidates:
             self.experiments[config] = ExperimentFromFile(
@@ -33,64 +34,70 @@ class StrategyEvaluator:
                 env_name=self.config.env_name,
             )
 
-    def evaluate(self) -> None:
+    def evaluate(self) -> dict[int, float]:
+        best_score = 0.0
+        score_curve = {}
+        current_step = 0
         while True:
             for config in self.candidates:
                 if self.experiments[config].train(self.config.eval_interval):
-                    self.finished_candidates.append(config)
+                    self.finished_candidates.add(config)
+
+            current_step += self.config.eval_interval
 
             # Evaluate experiments
+            score_updated = False
             for config in self.candidates:
                 score = self.experiments[config].evaluate(self.config.eval_episodes)
-                self.strategy.update(self.experiments[config], score)
+                if score > best_score:
+                    best_score = score
+                    score_updated = True
+                self.strategy.update(config, score)
 
-            unfinished_candidates = [
-                config
-                for config in self.candidates
-                if config not in self.finished_candidates
-            ]
-            if len(unfinished_candidates) == 0:
-                break
+            if score_updated or current_step == self.config.steps:
+                score_curve[current_step] = best_score
 
             # Sample new candidates based on the strategy
-            new_candidates = self.strategy.sample()
+            self.candidates = self.strategy.sample()
 
-            # Stop experiments that are no longer candidates
-            for config in self.candidates:
-                if config not in new_candidates:
-                    self.stopping_step[config] = self.experiments[config].current_step
-
-            self.candidates = new_candidates
+            done = [config in self.finished_candidates for config in self.candidates]
+            if all(done):
+                break
+        
+        return score_curve
 
     def plot(self):
         sns.set_theme(style="darkgrid")
-        plt.figure(figsize=(10, 6))
-        for experiment in self.experiments.values():
+        plt.figure(figsize=(20, 12))
+        for config, experiment in self.experiments.items():
             data = experiment.get_data()
+            sns.lineplot(data=data, x="step", y="success", linestyle="--", alpha=0.4)
             sns.lineplot(
-                data=data,
+                data=data[data["step"] <= self.experiments[config].current_step],
                 x="step",
                 y="success",
                 label=experiment.get_label(),
-                linestyle="--"
-                if experiment.current_step in self.stopping_step
-                else "-",
             )
-            if experiment.current_step in self.stopping_step:
-                sns.lineplot(
-                    data=data[data["step"] <= experiment.current_step],
-                    x="step",
-                    y="success",
-                    label=experiment.get_label(),
-                )
         plt.xlabel("Step")
         plt.ylabel("Success Rate")
-        plt.title(get_strategy_title(self.strategy))
-        plt.legend()
-        plt.show()
+        plt.title(get_strategy_title(self.strategy, self.config.env_name))
+        plt.legend(bbox_to_anchor=(1.02, 1), loc="upper left", borderaxespad=0)
+        plt.savefig(
+            f"report/{get_strategy_filename(self.strategy, self.config.env_name)}.png",
+            bbox_inches="tight",
+            dpi=300,
+        )
+        plt.close()
 
-def get_strategy_title(strategy: HpoStrategy) -> str:
+
+def get_strategy_title(strategy: HpoStrategy, env_name: str) -> str:
     if isinstance(strategy, SuccessiveHalving):
-        return fr"Successive Halving $(f={strategy.fraction}, h={strategy.history_length})$"
+        return rf"Successive Halving $(f={strategy.fraction}, h={strategy.history_length})$\nFor tuning $\alpha$ on {get_task_title(env_name)} task."
     else:
         return "Unknown Strategy"
+
+def get_strategy_filename(strategy: HpoStrategy, env_name: str) -> str:
+    if isinstance(strategy, SuccessiveHalving):
+        return f"successive_halving_f{strategy.fraction}_h{strategy.history_length}_{get_task_filename(env_name)}"
+    else:
+        return "unknown_strategy"

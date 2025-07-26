@@ -57,8 +57,8 @@ def baseline_loss(
     logs = {
         "next_observation_loss": next_observation_loss,
         "terminated_loss": terminated_loss,
-        "termination_loss_true": jnp.mean(terminated_loss_true),
-        "termination_loss_false": jnp.mean(terminated_loss_false),
+        "termination_loss_true": jnp.sum(terminated_loss_true) / jnp.sum(batch["rewards"] == 0),
+        "termination_loss_false": jnp.sum(terminated_loss_false) / jnp.sum(batch["rewards"] != 0),
         "loss": loss,
     }
 
