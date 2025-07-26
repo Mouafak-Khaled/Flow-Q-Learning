@@ -53,9 +53,9 @@ fractions = [0.25, 0.5, 0.75]
 history_lengths = [1, 2, 4, 8]
 score_curve = {}
 for fraction, history_length in itertools.product(fractions, history_lengths):
-    experiment_configs = [
+    experiment_configs = set(
         ExperimentConfig(seed=seed, alpha=alpha) for alpha, seed in combinations
-    ]
+    )
 
     # create evaluator
     strategy = SuccessiveHalving(
@@ -71,7 +71,7 @@ for fraction, history_length in itertools.product(fractions, history_lengths):
     score_curve[(fraction, history_length)] = evaluator.evaluate()
 
     # plot the results
-    # evaluator.plot()
+    evaluator.plot()
 
 rows = []
 for (fraction, history_length), step_scores in score_curve.items():
