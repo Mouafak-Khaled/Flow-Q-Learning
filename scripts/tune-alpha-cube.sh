@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --array=0-31%1
+#SBATCH --array=21,22,27,28
 #SBATCH --job-name=TuneAlphaCube_FlowQLearning
 #SBATCH --partition=dllabdlc_gpu-rtx2080
 #SBATCH --mem=16GB

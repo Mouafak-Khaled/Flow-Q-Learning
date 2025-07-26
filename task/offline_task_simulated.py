@@ -67,11 +67,11 @@ class OfflineTaskWithSimulatedEvaluations(Task):
             )
 
         if model == "baseline":
-            self.params = flax.serialization.from_bytes(self.params, params_bytes)
+            self.params = flax.serialization.from_bytes(None, params_bytes)
         elif model == "multistep":
             self.params = {
                 # TODO: This is a workaround, we need to fix the model structure probably
-                #       probably by giving more meaningful names to the flax modules
+                #       probably by giving more meaningful names to the flax modules 
                 "params": flax.serialization.from_bytes(None, params_bytes)["params"]["ScanCell_0"]["cell"]
             }
         else:
