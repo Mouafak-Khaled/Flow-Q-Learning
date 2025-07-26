@@ -32,7 +32,7 @@ if config.model == "baseline":
     env_model = BaselineEnvModel(
         observation_dimension=sample_batch["observations"].shape[-1],
         action_dimension=sample_batch["actions"].shape[-1],
-        hidden_size=config.model_config["hidden_dim"],
+        hidden_dims=config.model_config["hidden_dims"],
     )
 
     loss_fn = partial(
@@ -49,7 +49,7 @@ elif config.model == "multistep":
     env_model = MultistepEnvModel(
         observation_dimension=sample_batch["observations"].shape[-1],
         action_dimension=sample_batch["actions"].shape[-1],
-        hidden_size=config.model_config["hidden_dim"],
+        hidden_dims=config.model_config["hidden_dims"],
     )
 
     loss_fn = partial(
@@ -67,7 +67,7 @@ elif config.model == "initial_observation":
     env_model = InitialObservationEnvModel(
         observation_dimension=sample_batch["observations"].shape[-1],
         latent_dimension=config.model_config["latent_dim"],
-        hidden_size=config.model_config["hidden_dim"],
+        hidden_dims=config.model_config["hidden_dims"],
     )
 
     loss_fn = vae_loss

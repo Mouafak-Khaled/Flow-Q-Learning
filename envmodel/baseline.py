@@ -12,7 +12,7 @@ class BaselineEnvModel(nn.Module):
 
     observation_dimension: int = 28
     action_dimension: int = 5
-    hidden_size: int = 128
+    hidden_dims: Tuple[int, ...] = (128, 128)
 
     @nn.compact
     def __call__(self, observations, actions, **kwargs):
@@ -20,8 +20,8 @@ class BaselineEnvModel(nn.Module):
 
         x = nn.LayerNorm()(x)
 
-        x = nn.relu(nn.Dense(self.hidden_size)(x))
-        x = nn.relu(nn.Dense(self.hidden_size)(x))
+        for hidden_dim in self.hidden_dims:
+            x = nn.relu(nn.Dense(hidden_dim)(x))
         next_observations = nn.Dense(self.observation_dimension)(x) + observations
         terminations = nn.Dense(1)(next_observations)
 
