@@ -210,6 +210,13 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--model.reconstruction_weight",
+        type=float,
+        default=1.0,
+        help="Weight for the reconstruction loss in the latent encoded model.",
+    )
+
+    parser.add_argument(
         "--model.sequence_length",
         type=int,
         default=128,
