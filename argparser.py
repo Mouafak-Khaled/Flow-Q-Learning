@@ -260,7 +260,7 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
         "--report_directory",
         type=str,
         default="report/",
-        help="Path to a directory where model parameters will be saved.",
+        help="Path to a directory where plots will be saved.",
     )
 
     return parser
