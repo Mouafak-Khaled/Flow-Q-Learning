@@ -32,9 +32,6 @@ def get_argparser() -> argparse.ArgumentParser:
         "--data_directory", type=str, default="data/", help="Dataset directory."
     )
     parser.add_argument(
-        "--report_directory", type=str, default="report/", help="Report directory."
-    )
-    parser.add_argument(
         "--use_wandb", action="store_true", help="Use Weights & Biases logging."
     )
     parser.add_argument(

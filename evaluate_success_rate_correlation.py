@@ -1,5 +1,4 @@
 import pickle
-from pathlib import Path
 
 import flax
 import matplotlib.colors as mcolors
@@ -14,6 +13,7 @@ from evaluator.evaluation import evaluate_agent
 from fql.agents.fql import FQLAgent
 from task.offline_task_real import OfflineTaskWithRealEvaluations
 from task.offline_task_simulated import OfflineTaskWithSimulatedEvaluations
+from utils.tasks import get_task_title
 
 
 def load_agent(agent_directory, sample_batch) -> FQLAgent:
@@ -134,8 +134,6 @@ for result_path in result_paths:
         }
     )
 
-# data = pd.read_csv("exp/exp_real/cube-single-play-singletask-task2-v0/data.csv")
-
 df = pd.DataFrame(data)
 
 df.to_csv(config.save_directory / config.env_name / f"{config.model}_data.csv")
@@ -156,7 +154,9 @@ plt.xlabel("Real Success Rate (%)")
 plt.ylabel("Simulated Success Rate (%)")
 plt.xticks(range(0, 110, 20))
 plt.yticks(range(0, 110, 20))
-plt.title("Sim vs Real Success Rate")
+plt.title(
+    f"Simulated and Real Success Rate Correlation for {get_task_title(config.env_name)} task"
+)
 plt.tight_layout()
 plt.savefig(output_path / f"{config.model}_success_rate_correlation.png", dpi=300)
 plt.close()
@@ -186,9 +186,9 @@ sc = plt.scatter(
 plt.xlabel("Avg Real Success Rate (%)")
 plt.ylabel("Avg Simulated Success Rate (%)")
 cbar = plt.colorbar(sc)
-cbar.set_label("Alpha (log scale)")
+cbar.set_label(r"log($\alpha$)")
 plt.suptitle(
-    "Sim vs Real Success Rate by Alpha"
+    rf"Simulated and Real Success Rate Correlation for {get_task_title(config.env_name)} task by $\alpha$"
     + "\n"
     + rf"Pearson's  $r$  = {r:>6.2f} (p = {p:>4.1f})"
     + "\n"
