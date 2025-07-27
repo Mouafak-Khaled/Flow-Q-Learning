@@ -1,27 +1,19 @@
+import pickle
 from pathlib import Path
-import seaborn as sns
+
+import flax
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import pandas as pd
-import matplotlib.colors as mcolors
+import seaborn as sns
+import yaml
+from scipy.stats import kendalltau, pearsonr, spearmanr
 
+from argparser import build_env_model_config_from_args, get_env_model_argparser
 from evaluator.evaluation import evaluate_agent
-from argparser import get_env_model_argparser, build_env_model_config_from_args
 from fql.agents.fql import FQLAgent
 from task.offline_task_real import OfflineTaskWithRealEvaluations
 from task.offline_task_simulated import OfflineTaskWithSimulatedEvaluations
-from scipy.stats import spearmanr, kendalltau, pearsonr
-import yaml
-import pickle
-import flax
-import itertools
-from trainer.config import ExperimentConfig
-
-
-from typing import Tuple
-import os
-import re
-import random
-import numpy as np
 
 
 def load_agent(agent_directory, sample_batch) -> FQLAgent:
