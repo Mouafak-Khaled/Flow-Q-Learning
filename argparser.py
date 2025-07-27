@@ -154,6 +154,7 @@ def build_config_from_args(args: argparse.Namespace) -> TrainerConfig:
     # Adjust directory fields
     trainer_kwargs["save_directory"] = Path(trainer_kwargs["save_directory"])
     trainer_kwargs["data_directory"] = Path(trainer_kwargs["data_directory"])
+    trainer_kwargs["report_directory"] = Path(trainer_kwargs["report_directory"])
 
     # Build AgentConfig
     agent_config_fields = set(AgentConfig.__dataclass_fields__.keys())
@@ -252,6 +253,13 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
         "--save_directory",
         type=str,
         default="exp/",
+        help="Path to a directory where model parameters will be saved.",
+    )
+
+    parser.add_argument(
+        "--report_directory",
+        type=str,
+        default="report/",
         help="Path to a directory where model parameters will be saved.",
     )
 
