@@ -13,9 +13,15 @@ from scipy.stats import spearmanr, kendalltau, pearsonr
 import yaml
 import pickle
 import flax
+import itertools
+from trainer.config import ExperimentConfig
+
+
 from typing import Tuple
 import os
 import re
+import random
+import numpy as np
 
 
 def load_agent(agent_directory, sample_batch) -> FQLAgent:
@@ -48,20 +54,13 @@ def load_agent(agent_directory, sample_batch) -> FQLAgent:
     return agent
 
 
-def get_success_rates(agent, real_task, simulated_task, seed) -> Tuple[float, float]:
-    real_info, _ = evaluate_agent(
-        agent=agent,
-        env=real_task,
-        seed=seed,
-    )
-
+def get_success_rate(agent, simulated_task) -> float:
     sim_info, _ = evaluate_agent(
         agent=agent,
         env=simulated_task,
-        seed=seed,
     )
 
-    return real_info["success"], sim_info["success"]
+    return sim_info["success"]
 
 
 parser = get_env_model_argparser()
@@ -89,14 +88,14 @@ simulated_task = OfflineTaskWithSimulatedEvaluations(
     num_evaluation_envs=args.eval_episodes,
 )
 
+
 result_paths = [
     f
-    for f in (config.save_directory / config.env_name).iterdir()
-    if f.is_dir() and f.name != "env_models"
+    for f in (config.save_directory / config.env_name).glob("seed_*_alpha_*_*")
+    if f.is_dir()
 ]
 
 data = []
-
 for result_path in result_paths:
     config_path = result_path / "config.yaml"
     if not config_path.exists():
@@ -114,11 +113,24 @@ for result_path in result_paths:
         sample_batch=real_task.sample("train", 1),
     )
 
-    real_success_rate, sim_success_rate = get_success_rates(
+    eval_path = result_path / "eval.csv"
+    if not eval_path.exists():
+        print(f"Skipping {eval_path} file not found.")
+        continue
+
+    eval_result = pd.read_csv(eval_path)
+    if (
+        eval_result.empty
+        or "success" not in eval_result.columns
+        or eval_result["success"].isna().all()
+    ):
+        print(f"Skipping {eval_path}: Empty, missing, or no valid 'success' values.")
+        continue
+
+    real_success_rate = eval_result["success"].iloc[-1]
+    sim_success_rate = get_success_rate(
         agent=agent,
-        real_task=real_task,
         simulated_task=simulated_task,
-        seed=config.seed,
     )
 
     data.append(
@@ -130,9 +142,10 @@ for result_path in result_paths:
         }
     )
 
-# data = pd.read_csv('exp/exp_real/cube-single-play-singletask-task2-v0/data.csv')
+# data = pd.read_csv("exp/exp_real/cube-single-play-singletask-task2-v0/data.csv")
 
 df = pd.DataFrame(data)
+
 df.to_csv(config.save_directory / config.env_name / f"{config.model}_data.csv")
 x = df["real_success"]
 y = df["sim_success"]
@@ -140,23 +153,22 @@ y = df["sim_success"]
 r, p = pearsonr(x, y)
 rho, rho_pval = spearmanr(x, y)
 tau, tau_pval = kendalltau(x, y)
-# put them on the title TODO
-print(f"Pearson's r: {r:.4f} (p = {p:.4f})")
-print(f"Spearman's ρ: {rho:.4f} (p = {rho_pval:.4f})")
-print(f"Kendall's τ:  {tau:.4f} (p = {tau_pval:.4f})")
 
-sns.set_theme(style="darkgrid")
-plt.figure(figsize=(8, 6))
-plt.scatter(df["real_success"], df["sim_success"], alpha=0.6)
-
-plt.xlabel("Real Success Rate (%)")
-plt.ylabel("Simulated Success Rate (%)")
-plt.title("Sim vs Real Success Rate")
-plt.tight_layout()
 output_path = Path("report") / config.env_name
 output_path.mkdir(parents=True, exist_ok=True)
 
+sns.set_theme(style="darkgrid")
+plt.figure(figsize=(10, 6))
+plt.scatter(df["real_success"], df["sim_success"], alpha=0.6)
+plt.xlabel("Real Success Rate (%)")
+plt.ylabel("Simulated Success Rate (%)")
+plt.xticks(range(0, 110, 20))
+plt.yticks(range(0, 110, 20))
+plt.title("Sim vs Real Success Rate")
+plt.tight_layout()
 plt.savefig(output_path / f"{config.model}_success_rate_correlation.png", dpi=300)
+plt.close()
+
 
 grouped_df = (
     df.groupby("alpha", dropna=True)[["real_success", "sim_success"]]
@@ -169,8 +181,8 @@ grouped_df = grouped_df.rename(
 norm = mcolors.LogNorm(
     vmin=grouped_df["alpha"].replace(0, 1e-3).min(), vmax=grouped_df["alpha"].max()
 )
-colors = plt.cm.viridis(norm(grouped_df["alpha"]))
-
+sns.set_theme(style="darkgrid")
+plt.figure(figsize=(10, 6))
 sc = plt.scatter(
     grouped_df["avg_real_success"],
     grouped_df["avg_sim_success"],
@@ -179,11 +191,23 @@ sc = plt.scatter(
     norm=norm,
     s=100,
 )
-
 plt.xlabel("Avg Real Success Rate (%)")
 plt.ylabel("Avg Simulated Success Rate (%)")
-plt.title("Sim vs Real Success Rate by Alpha")
 cbar = plt.colorbar(sc)
 cbar.set_label("Alpha (log scale)")
+plt.suptitle(
+    "Sim vs Real Success Rate by Alpha"
+    + "\n"
+    + rf"Pearson's  $r$  = {r:>6.2f} (p = {p:>4.1f})"
+    + "\n"
+    + rf"Spearman's $\rho$ = {rho:>6.2f} (p = {rho_pval:>4.1f})"
+    + "\n"
+    + rf"Kendall's  $\tau$ = {tau:>6.2f} (p = {tau_pval:>4.1f})",
+    fontsize=12,
+)
 plt.tight_layout()
-plt.savefig(output_path / f"{config.model}_success_rate_correlation_grouped_alpha.png", dpi=300)
+plt.xticks(range(0, 110, 20))
+plt.yticks(range(0, 110, 20))
+plt.savefig(
+    output_path / f"{config.model}_success_rate_correlation_grouped_alpha.png", dpi=300
+)
