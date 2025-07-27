@@ -146,7 +146,7 @@ r, p = pearsonr(x, y)
 rho, rho_pval = spearmanr(x, y)
 tau, tau_pval = kendalltau(x, y)
 
-output_path = Path("report") / config.env_name
+output_path = config.report_directory / config.env_name
 output_path.mkdir(parents=True, exist_ok=True)
 
 sns.set_theme(style="darkgrid")

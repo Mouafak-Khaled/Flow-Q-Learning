@@ -1,5 +1,6 @@
-from pathlib import Path
 from dataclasses import dataclass, field
+from pathlib import Path
+
 
 @dataclass
 class TrainerConfig:
@@ -13,3 +14,4 @@ class TrainerConfig:
     val_batches: int = 20
     data_directory: Path = Path("data/")
     save_directory: Path = Path("exp/")
+    report_directory: Path = Path("report/")

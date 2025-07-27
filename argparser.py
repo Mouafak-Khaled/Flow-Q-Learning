@@ -32,6 +32,9 @@ def get_argparser() -> argparse.ArgumentParser:
         "--data_directory", type=str, default="data/", help="Dataset directory."
     )
     parser.add_argument(
+        "--report_directory", type=str, default="report/", help="Report directory."
+    )
+    parser.add_argument(
         "--use_wandb", action="store_true", help="Use Weights & Biases logging."
     )
     parser.add_argument(
@@ -271,6 +274,7 @@ def build_env_model_config_from_args(args: argparse.Namespace) -> EnvModelTraine
     # Adjust directory fields
     trainer_kwargs["save_directory"] = Path(trainer_kwargs["save_directory"])
     trainer_kwargs["data_directory"] = Path(trainer_kwargs["data_directory"])
+    trainer_kwargs["report_directory"] = Path(trainer_kwargs["report_directory"])
 
     # Build EnvModelTrainerConfig with model inside
     trainer_config_fields = set(EnvModelTrainerConfig.__dataclass_fields__.keys())
