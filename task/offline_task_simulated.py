@@ -54,7 +54,7 @@ class OfflineTaskWithSimulatedEvaluations(Task):
         self.model = BaselineEnvModel(
             observation_dimension=example_batch["observations"].shape[-1],
             action_dimension=example_batch["actions"].shape[-1],
-            hidden_size=model_config["hidden_dim"],
+            hidden_dims=model_config["hidden_dim"],
         )
 
         env_model_path = save_directory / env_name / "env_models" / f"{model}.pt"

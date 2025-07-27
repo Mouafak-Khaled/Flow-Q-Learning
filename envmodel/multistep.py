@@ -7,15 +7,15 @@ from envmodel.baseline import BaselineEnvModel
 
 
 class Cell(nn.Module):
-    observation_dimension: int = 28
-    action_dimension: int = 5
-    hidden_size: int = 128
+    observation_dimension: int
+    action_dimension: int
+    hidden_dims: Tuple[int, ...]
 
     def setup(self):
         self.cell = BaselineEnvModel(
             observation_dimension=self.observation_dimension,
             action_dimension=self.action_dimension,
-            hidden_size=self.hidden_size,
+            hidden_dims=self.hidden_dims,
         )
 
     @nn.compact
@@ -31,7 +31,7 @@ class Cell(nn.Module):
 class MultistepEnvModel(nn.Module):
     observation_dimension: int = 28
     action_dimension: int = 5
-    hidden_size: int = 128
+    hidden_dims: Tuple[int, ...] = (128, 256, 128)
 
     @nn.compact
     def __call__(
@@ -48,7 +48,7 @@ class MultistepEnvModel(nn.Module):
         _, (next_observations, terminations) = model(
             observation_dimension=self.observation_dimension,
             action_dimension=self.action_dimension,
-            hidden_size=self.hidden_size,
+            hidden_dims=self.hidden_dims,
         )(observations[:, 0, :], actions)
 
         return next_observations, terminations

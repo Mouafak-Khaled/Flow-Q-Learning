@@ -182,9 +182,9 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--model.hidden_dim",
-        type=int,
-        default=128,
+        "--model.hidden_dims",
+        type=literal_eval,
+        default=(128, 128),
         help="The dimension of hidden layers.",
     )
 
