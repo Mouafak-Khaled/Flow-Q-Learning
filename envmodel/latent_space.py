@@ -44,56 +44,6 @@ class LatentSpaceEnvModel(nn.Module):
         next_z, terminations = self.state_predictor(observations=z, actions=actions)
         reconstructed_observations = decoder(z)
         next_observations = decoder(z)
-
-        return next_observations, terminations, reconstructed_observations
-
-
-class LatentCell(nn.Module):
-    latent_dim: int
-    action_dim: int
-    hidden_dim: int
-
-    def setup(self):
-        self.cell = BaselineEnvModel(
-            observation_dimension=self.latent_dim,
-            action_dimension=self.action_dim,
-            hidden_size=self.hidden_dim,
-        )
-
-    @nn.compact
-    def __call__(
-        self, z, actions, **kwargs
-    ) -> Tuple[jnp.ndarray, Tuple[jnp.ndarray, jnp.ndarray]]:
-        next_z, terminations = self.cell(
-            observations=z, actions=actions, **kwargs
-        )
-        return next_z, (next_z, terminations)
-
-
-class MultistepLatentSpaceEnvModel(nn.Module):
-    observation_dim: int
-    latent_dim: int
-    hidden_dim: int
-    action_dim: int
-
-    @nn.compact
-    def __call__(self, observations: jnp.ndarray, actions: jnp.ndarray, **kwargs):
-        encoder = Encoder(self.latent_dim, self.hidden_dim)
-        decoder = Decoder(self.observation_dim, self.hidden_dim)
-        z = encoder(observations[:, 0, :])
-        # Define the recurrent model
-        cell = nn.scan(
-            LatentCell,
-            variable_broadcast="params",
-            split_rngs={"params": False},
-            in_axes=1,
-            out_axes=1,
-        )(self.latent_dim, self.action_dim, self.hidden_dim)
-
-        _, (next_z, terminations) = cell(z, actions)
-        next_observations = decoder(next_z)
-        reconstructed_observations = decoder(z)
-
         return next_observations, terminations, reconstructed_observations
 
 
@@ -121,9 +71,6 @@ def latent_space_loss(
     ) / (termination_true_weight + 1)
 
     observations = batch["observations"]
-
-    if observations.ndim == 3:
-        observations = observations[:, 0, :]
 
     reconstruction_loss = jnp.mean(
         jnp.square(reconstructed_observations - observations)

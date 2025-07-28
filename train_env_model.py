@@ -105,11 +105,18 @@ elif config.model == "multistep_latent_encoded":
     # Sample once to get shapes
     sample_batch = train_dataloader.sample(config.batch_size)
 
-    env_model = MultistepLatentSpaceEnvModel(
+
+    state_predictor = MultistepEnvModel(
+        observation_dimension=config.model_config["latent_dim"],
+        action_dimension=sample_batch["actions"].shape[-1],
+        hidden_size=config.model_config["hidden_dim"],
+    )
+
+    env_model = LatentSpaceEnvModel(
+        state_predictor=state_predictor,
         observation_dim=sample_batch["observations"].shape[-1],
         latent_dim=config.model_config["latent_dim"],
-        hidden_dim=config.model_config["hidden_dim"],
-        action_dim=sample_batch["actions"].shape[-1]
+        hidden_dim=config.model_config["hidden_dim"]
     )
 
     loss_fn = partial(
