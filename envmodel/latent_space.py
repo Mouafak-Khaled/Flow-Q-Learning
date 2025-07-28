@@ -1,5 +1,4 @@
 from typing import Tuple, Dict, Any
-from envmodel.baseline import BaselineEnvModel
 import jax
 import jax.numpy as jnp
 import optax
@@ -8,23 +7,25 @@ from flax import linen as nn
 
 class Encoder(nn.Module):
     latent_dim: int
-    hidden_dim: int
+    hidden_dims: Tuple[int, ...]
 
     @nn.compact
     def __call__(self, s: jnp.ndarray):
-        x = nn.relu(nn.Dense(self.hidden_dim)(s))
-        x = nn.relu(nn.Dense(self.hidden_dim)(x))
+        x = s
+        for hidden_dim in self.hidden_dims:
+            x = nn.relu(nn.Dense(hidden_dim)(x))
         return nn.Dense(self.latent_dim)(x)
 
 
 class Decoder(nn.Module):
     output_dim: int
-    hidden_dim: int
+    hidden_dims: Tuple[int, ...]
 
     @nn.compact
     def __call__(self, z: jnp.ndarray):
-        x = nn.relu(nn.Dense(self.hidden_dim)(z))
-        x = nn.relu(nn.Dense(self.hidden_dim)(x))
+        x = z
+        for hidden_dim in self.hidden_dims:
+            x = nn.relu(nn.Dense(hidden_dim)(x))
         return nn.Dense(self.output_dim)(x)
 
 
@@ -33,30 +34,34 @@ class LatentSpaceEnvModel(nn.Module):
 
     observation_dim: int
     latent_dim: int
-    hidden_dim: int
+    hidden_dims: Tuple[int, ...] = (128, 128)
 
     @nn.compact
     def __call__(self, observations: jnp.ndarray, actions: jnp.ndarray, **kwargs):
-        encoder = Encoder(self.latent_dim, self.hidden_dim)
-        decoder = Decoder(self.observation_dim, self.hidden_dim)
+        encoder = Encoder(self.latent_dim, self.hidden_dims)
+        decoder = Decoder(self.observation_dim, self.hidden_dims)
 
         z = encoder(observations)
         next_z, terminations = self.state_predictor(observations=z, actions=actions)
         reconstructed_observations = decoder(z)
-        next_observations = decoder(z)
+        next_observations = decoder(next_z)
         return next_observations, terminations, reconstructed_observations
 
 
 def latent_space_loss(
-        model: nn.Module,
-        params: Any,
-        rng: jax.Array,
-        batch: Dict[str, jnp.ndarray],
-        termination_weight: float,
-        termination_true_weight: float,
-        reconstruction_weight: float
+    model: nn.Module,
+    params: Any,
+    rng: jax.Array,
+    batch: Dict[str, jnp.ndarray],
+    termination_weight: float,
+    termination_true_weight: float,
+    reconstruction_weight: float,
 ) -> Tuple[jnp.ndarray, Tuple[Dict[str, jnp.ndarray], jax.Array]]:
-    pred_next_obs, pred_terminals, reconstructed_observations = model.apply(params, **batch)
+    """Computes the total loss for a given batch."""
+
+    pred_next_obs, pred_terminals, reconstructed_observations = model.apply(
+        params, **batch
+    )
 
     next_observation_loss = jnp.mean(
         jnp.square(pred_next_obs - batch["next_observations"])
@@ -76,10 +81,11 @@ def latent_space_loss(
         jnp.square(reconstructed_observations - observations)
     )
 
-    loss = (next_observation_loss
-            + termination_weight * terminated_loss
-            + reconstruction_weight * reconstruction_loss
-            ) / (1 + termination_weight + reconstruction_weight)
+    loss = (
+        next_observation_loss
+        + termination_weight * terminated_loss
+        + reconstruction_weight * reconstruction_loss
+    ) / (1 + termination_weight + reconstruction_weight)
 
     logs = {
         "next_observation_loss": next_observation_loss,

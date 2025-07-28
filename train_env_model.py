@@ -10,7 +10,7 @@ import yaml
 from argparser import build_env_model_config_from_args, get_env_model_argparser
 from envmodel.baseline import BaselineEnvModel, baseline_loss
 from envmodel.initial_observation import InitialObservationEnvModel, vae_loss
-from envmodel.latent_space import latent_space_loss, LatentSpaceEnvModel, MultistepLatentSpaceEnvModel
+from envmodel.latent_space import latent_space_loss, LatentSpaceEnvModel
 from envmodel.multistep import MultistepEnvModel
 from envmodel.trainer import Trainer
 from utils.data_loader import InitialObservationLoader, StepLoader, MultistepLoader
@@ -68,7 +68,7 @@ elif config.model == "initial_observation":
     env_model = InitialObservationEnvModel(
         observation_dimension=sample_batch["observations"].shape[-1],
         latent_dimension=config.model_config["latent_dim"],
-        hidden_dims=config.model_config["hidden_dims"],
+        hidden_dims=config.model_config["autoencoder_hidden_dims"],
     )
 
     loss_fn = vae_loss
@@ -82,13 +82,13 @@ elif config.model == "latent_encoded":
     state_predictor = BaselineEnvModel(
         observation_dimension=config.model_config["latent_dim"],
         action_dimension=sample_batch["actions"].shape[-1],
-        hidden_size=config.model_config["hidden_dim"],
+        hidden_dims=config.model_config["hidden_dims"],
     )
     env_model = LatentSpaceEnvModel(
         state_predictor=state_predictor,
         observation_dim=sample_batch["observations"].shape[-1],
         latent_dim=config.model_config["latent_dim"],
-        hidden_dim=config.model_config["hidden_dim"]
+        hidden_dims=config.model_config["autoencoder_hidden_dims"]
     )
 
     loss_fn = partial(
@@ -109,14 +109,14 @@ elif config.model == "multistep_latent_encoded":
     state_predictor = MultistepEnvModel(
         observation_dimension=config.model_config["latent_dim"],
         action_dimension=sample_batch["actions"].shape[-1],
-        hidden_size=config.model_config["hidden_dim"],
+        hidden_dims=config.model_config["hidden_dims"],
     )
 
     env_model = LatentSpaceEnvModel(
         state_predictor=state_predictor,
         observation_dim=sample_batch["observations"].shape[-1],
         latent_dim=config.model_config["latent_dim"],
-        hidden_dim=config.model_config["hidden_dim"]
+        hidden_dims=config.model_config["autoencoder_hidden_dims"],
     )
 
     loss_fn = partial(

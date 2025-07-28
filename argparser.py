@@ -189,6 +189,13 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--model.autoencoder_hidden_dims",
+        type=literal_eval,
+        default=(128, 128),
+        help="The dimension of hidden layers for the encoder/decoder in the autoencoder.",
+    )
+
+    parser.add_argument(
         "--model.latent_dim",
         type=int,
         default=4,
