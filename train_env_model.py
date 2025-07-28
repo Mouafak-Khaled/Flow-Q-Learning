@@ -10,7 +10,7 @@ import yaml
 from argparser import build_env_model_config_from_args, get_env_model_argparser
 from envmodel.baseline import BaselineEnvModel, baseline_loss
 from envmodel.initial_observation import InitialObservationEnvModel, vae_loss
-from envmodel.latent_space import latent_space_loss, LatentSpaceEnvModel
+from envmodel.latent_space import latent_space_loss, LatentSpaceEnvModel, MultistepLatentSpaceEnvModel
 from envmodel.multistep import MultistepEnvModel
 from envmodel.trainer import Trainer
 from utils.data_loader import InitialObservationLoader, StepLoader, MultistepLoader
@@ -89,6 +89,27 @@ elif config.model == "latent_encoded":
         observation_dim=sample_batch["observations"].shape[-1],
         latent_dim=config.model_config["latent_dim"],
         hidden_dim=config.model_config["hidden_dim"]
+    )
+
+    loss_fn = partial(
+        latent_space_loss,
+        termination_weight=config.model_config["termination_weight"],
+        termination_true_weight=config.model_config["termination_true_weight"],
+        reconstruction_weight=config.model_config["reconstruction_weight"],
+    )
+
+elif config.model == "multistep-latent_encoded":
+    train_dataloader = StepLoader(train_dataset)
+    val_dataloader = StepLoader(val_dataset)
+
+    # Sample once to get shapes
+    sample_batch = train_dataloader.sample(config.batch_size)
+
+    env_model = MultistepLatentSpaceEnvModel(
+        observation_dim=sample_batch["observations"].shape[-1],
+        latent_dim=config.model_config["latent_dim"],
+        hidden_dim=config.model_config["hidden_dim"],
+        action_dim=sample_batch["actions"].shape[-1]
     )
 
     loss_fn = partial(
