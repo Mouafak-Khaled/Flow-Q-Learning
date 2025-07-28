@@ -1,31 +1,9 @@
 from typing import Tuple, Dict, Any
-from baseline import BaselineEnvModel
+from envmodel.baseline import BaselineEnvModel
 import jax
 import jax.numpy as jnp
 import optax
 from flax import linen as nn
-
-
-class LatentCell(nn.Module):
-    latent_dim: int
-    action_dim: int
-    hidden_dim: int
-
-    def setup(self):
-        self.cell = BaselineEnvModel(
-            observation_dimension=self.latent_dim,
-            action_dimension=self.action_dimension,
-            hidden_size=self.hidden_size,
-        )
-
-    @nn.compact
-    def __call__(
-        self, z, actions, **kwargs
-    ) -> Tuple[jnp.ndarray, Tuple[jnp.ndarray, jnp.ndarray]]:
-        next_observations, terminations = self.cell(
-            observations=z, actions=actions, **kwargs
-        )
-        return next_z, (next_z, terminations)
 
 
 class Encoder(nn.Module):
@@ -70,6 +48,28 @@ class LatentSpaceEnvModel(nn.Module):
         return next_observations, terminations, reconstructed_observations
 
 
+class LatentCell(nn.Module):
+    latent_dim: int
+    action_dim: int
+    hidden_dim: int
+
+    def setup(self):
+        self.cell = BaselineEnvModel(
+            observation_dimension=self.latent_dim,
+            action_dimension=self.action_dim,
+            hidden_size=self.hidden_dim,
+        )
+
+    @nn.compact
+    def __call__(
+        self, z, actions, **kwargs
+    ) -> Tuple[jnp.ndarray, Tuple[jnp.ndarray, jnp.ndarray]]:
+        next_z, terminations = self.cell(
+            observations=z, actions=actions, **kwargs
+        )
+        return next_z, (next_z, terminations)
+
+
 class MultistepLatentSpaceEnvModel(nn.Module):
     observation_dim: int
     latent_dim: int
@@ -77,13 +77,10 @@ class MultistepLatentSpaceEnvModel(nn.Module):
     action_dim: int
 
     @nn.compact
-    def __call__(self, observations: jnp.ndarray, actions: jnp.ndarray):
-        # observations: [B, T+1, obs_dim], actions: [B, T, act_dim]
+    def __call__(self, observations: jnp.ndarray, actions: jnp.ndarray, **kwargs):
         encoder = Encoder(self.latent_dim, self.hidden_dim)
         decoder = Decoder(self.observation_dim, self.hidden_dim)
-
-        z = encoder(observations[:, 0])
-
+        z = encoder(observations[:, 0, :])
         # Define the recurrent model
         cell = nn.scan(
             LatentCell,
@@ -94,7 +91,6 @@ class MultistepLatentSpaceEnvModel(nn.Module):
         )(self.latent_dim, self.action_dim, self.hidden_dim)
 
         _, (next_z, terminations) = cell(z, actions)
-
         next_observations = decoder(next_z)
         reconstructed_observations = decoder(z)
 
@@ -124,8 +120,13 @@ def latent_space_loss(
         termination_true_weight * terminated_loss_true + terminated_loss_false
     ) / (termination_true_weight + 1)
 
+    observations = batch["observations"]
+
+    if observations.ndim == 3:
+        observations = observations[:, 0, :]
+
     reconstruction_loss = jnp.mean(
-        jnp.square(reconstructed_observations - batch["observations"])
+        jnp.square(reconstructed_observations - observations)
     )
 
     loss = (next_observation_loss

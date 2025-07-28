@@ -98,9 +98,9 @@ elif config.model == "latent_encoded":
         reconstruction_weight=config.model_config["reconstruction_weight"],
     )
 
-elif config.model == "multistep-latent_encoded":
-    train_dataloader = StepLoader(train_dataset)
-    val_dataloader = StepLoader(val_dataset)
+elif config.model == "multistep_latent_encoded":
+    train_dataloader = MultistepLoader(train_dataset, sequence_length=config.model_config["sequence_length"])
+    val_dataloader = MultistepLoader(val_dataset, sequence_length=config.model_config["sequence_length"])
 
     # Sample once to get shapes
     sample_batch = train_dataloader.sample(config.batch_size)
