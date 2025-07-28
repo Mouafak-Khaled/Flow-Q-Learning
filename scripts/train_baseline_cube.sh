@@ -14,8 +14,7 @@ conda activate fql
 python train_env_model.py \
     --env_name=cube-single-play-singletask-task2-v0 --model=baseline \
     --model.hidden_dims="(128, 128)" --model.termination_true_weight=30 --model.termination_weight=1 \
-    --save_directory=/work/dlclarge2/amriam-fql/exp/ --data_directory=/work/dlclarge2/amriam-fql/data/ \
-    --use_wandb
+    --save_directory=/work/dlclarge2/amriam-fql/exp/ --data_directory=/work/dlclarge2/amriam-fql/data/
 
 python evaluate_success_rate_correlation.py --env_name=cube-single-play-singletask-task2-v0 --model=baseline \
     --save_directory=/work/dlclarge2/amriam-fql/exp/ --data_directory=/work/dlclarge2/amriam-fql/data/ \
