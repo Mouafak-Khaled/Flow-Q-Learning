@@ -54,7 +54,7 @@ class OfflineTaskWithSimulatedEvaluations(Task):
         self.model = BaselineEnvModel(
             observation_dimension=example_batch["observations"].shape[-1],
             action_dimension=example_batch["actions"].shape[-1],
-            hidden_dims=model_config["hidden_dim"],
+            hidden_dims=model_config["hidden_dims"],
         )
 
         env_model_path = save_directory / env_name / "env_models" / f"{model}.pt"
@@ -67,11 +67,11 @@ class OfflineTaskWithSimulatedEvaluations(Task):
             )
 
         if model == "baseline":
-            self.params = flax.serialization.from_bytes(self.params, params_bytes)
+            self.params = flax.serialization.from_bytes(None, params_bytes)
         elif model == "multistep":
             self.params = {
                 # TODO: This is a workaround, we need to fix the model structure probably
-                #       probably by giving more meaningful names to the flax modules
+                #       probably by giving more meaningful names to the flax modules 
                 "params": flax.serialization.from_bytes(None, params_bytes)["params"]["ScanCell_0"]["cell"]
             }
         else:
@@ -79,6 +79,8 @@ class OfflineTaskWithSimulatedEvaluations(Task):
 
         self.current_obs = None
         self.episode_steps = 0
+        self.model_name = model
+        self.env_name = env_name
 
     def sample(self, dataset: Literal["train", "val"], batch_size: int):
         return (
