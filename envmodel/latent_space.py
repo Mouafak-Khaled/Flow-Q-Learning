@@ -1,5 +1,5 @@
 from typing import Tuple, Dict, Any
-
+from baseline import BaselineEnvModel
 import jax
 import jax.numpy as jnp
 import optax
@@ -11,15 +11,21 @@ class LatentCell(nn.Module):
     action_dim: int
     hidden_dim: int
 
+    def setup(self):
+        self.cell = BaselineEnvModel(
+            observation_dimension=self.latent_dim,
+            action_dimension=self.action_dimension,
+            hidden_size=self.hidden_size,
+        )
+
     @nn.compact
-    def __call__(self, z, a):
-        # Predict next latent and termination
-        x = jnp.concatenate([z, a], axis=-1)
-        x = nn.relu(nn.Dense(self.hidden_dim)(x))
-        x = nn.relu(nn.Dense(self.hidden_dim)(x))
-        next_z = nn.Dense(self.latent_dim)(x)
-        termination_logit = nn.Dense(1)(x)
-        return next_z, (next_z, termination_logit)
+    def __call__(
+        self, z, actions, **kwargs
+    ) -> Tuple[jnp.ndarray, Tuple[jnp.ndarray, jnp.ndarray]]:
+        next_observations, terminations = self.cell(
+            observations=z, actions=actions, **kwargs
+        )
+        return next_z, (next_z, terminations)
 
 
 class Encoder(nn.Module):
