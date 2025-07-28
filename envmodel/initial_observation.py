@@ -36,7 +36,7 @@ class InitialObservationEnvModel(nn.Module):
 
     def setup(self):
         self.encoder = Encoder(self.latent_dimension, self.hidden_dims)
-        self.decoder = Decoder(self.observation_dimension, self.hidden_dims)
+        self.decoder = Decoder(self.observation_dimension, self.hidden_dims[::-1])
 
     def reparameterize(self, key, mu, logvar):
         std = jnp.exp(0.5 * logvar)
@@ -53,7 +53,11 @@ class InitialObservationEnvModel(nn.Module):
 
 
 def vae_loss(
-    model: nn.Module, params: Any, rng: jax.Array, batch: Dict[str, jnp.ndarray]
+    model: nn.Module,
+    params: Any,
+    rng: jax.Array,
+    batch: Dict[str, jnp.ndarray],
+    reconstruction_weight: float
 ) -> Tuple[jnp.ndarray, Tuple[Dict[str, jnp.ndarray], jax.Array]]:
     rng, key = jax.random.split(rng)
     reconstructed_observations, (mu, logvar) = model.apply(params, key=key, **batch)
@@ -63,7 +67,7 @@ def vae_loss(
     )
     kl = -0.5 * jnp.mean(1 + logvar - mu**2 - jnp.exp(logvar))
 
-    loss = reconstruction_loss + kl
+    loss = (reconstruction_weight * reconstruction_loss + kl) / (reconstruction_weight + 1)
 
     logs = {
         "reconstruction_loss": reconstruction_loss,

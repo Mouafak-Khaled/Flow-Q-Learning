@@ -70,7 +70,10 @@ elif config.model == "initial_observation":
         hidden_dims=config.model_config["hidden_dims"],
     )
 
-    loss_fn = vae_loss
+    loss_fn = partial(
+        vae_loss,
+        reconstruction_weight=config.model_config["reconstruction_weight"],
+    )
 else:
     raise ValueError(f"Unknown model type: {args.model}")
 

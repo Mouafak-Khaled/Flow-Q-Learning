@@ -1,3 +1,5 @@
 -e ./fql
 pandas
 seaborn
+scikit-learn
+matplotlib
