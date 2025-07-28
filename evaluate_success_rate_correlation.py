@@ -15,7 +15,7 @@ from task.offline_task_real import OfflineTaskWithRealEvaluations
 from task.offline_task_simulated import OfflineTaskWithSimulatedEvaluations
 from trainer.config import ExperimentConfig
 from utils.agent import load_agent
-from utils.tasks import get_task_title
+from utils.tasks import get_task_title, get_task_filename
 
 # Usage:
 # python evaluate_success_rate_correlation.py --env_name=antsoccer-arena-navigate-singletask-task4-v0 --model=baseline \
@@ -132,9 +132,6 @@ r, p = pearsonr(x, y)
 rho, rho_pval = spearmanr(x, y)
 tau, tau_pval = kendalltau(x, y)
 
-output_path = config.report_directory / config.env_name
-output_path.mkdir(parents=True, exist_ok=True)
-
 sns.set_theme(style="darkgrid")
 plt.figure(figsize=(10, 6))
 plt.scatter(df["real_success"], df["sim_success"], alpha=0.6)
@@ -146,7 +143,10 @@ plt.title(
     f"Simulated and Real Success Rate Correlation for {get_task_title(config.env_name)} task"
 )
 plt.tight_layout()
-plt.savefig(output_path / f"{config.model}_success_rate_correlation.png", dpi=300)
+plt.savefig(
+    f"report/success_rate_correlation_{config.model}_{get_task_filename(config.env_name)}.png",
+    dpi=300,
+)
 plt.close()
 
 grouped_df = (
@@ -179,6 +179,7 @@ plt.tight_layout()
 plt.xticks(range(-10, 110, 20))
 plt.yticks(range(-10, 110, 20))
 plt.savefig(
-    output_path / f"{config.model}_success_rate_correlation_grouped_alpha.png", dpi=300
+    f"report/success_rate_correlation_grouped_by_alpha_{config.model}_{get_task_filename(config.env_name)}.png",
+    dpi=300,
 )
 plt.close()

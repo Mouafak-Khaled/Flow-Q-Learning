@@ -14,4 +14,3 @@ class TrainerConfig:
     val_batches: int = 20
     data_directory: Path = Path("data/")
     save_directory: Path = Path("exp/")
-    report_directory: Path = Path("report/")
