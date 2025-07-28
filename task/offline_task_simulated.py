@@ -79,6 +79,8 @@ class OfflineTaskWithSimulatedEvaluations(Task):
 
         self.current_obs = None
         self.episode_steps = 0
+        self.model = model
+        self.env_name = env_name
 
     def sample(self, dataset: Literal["train", "val"], batch_size: int):
         return (

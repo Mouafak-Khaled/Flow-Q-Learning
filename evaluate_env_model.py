@@ -78,5 +78,5 @@ env_model_evaluator = EnvModelEvaluator(
 )
 
 env_model_evaluator.evaluate()
-
+env_model_evaluator.plot_comparison()
 env_model_evaluator.close()
