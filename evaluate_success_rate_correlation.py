@@ -1,60 +1,26 @@
 import itertools
-import pickle
 import random
 
-import flax
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import seaborn as sns
-import yaml
 from scipy.stats import kendalltau, pearsonr, spearmanr
 
 from argparser import build_env_model_config_from_args, get_env_model_argparser
+from utils.agent import load_agent
 from evaluator.env_model_evaluator import EnvModelEvaluator
-from fql.agents.fql import FQLAgent
 from task.offline_task_real import OfflineTaskWithRealEvaluations
 from task.offline_task_simulated import OfflineTaskWithSimulatedEvaluations
 from trainer.config import ExperimentConfig
 from utils.tasks import get_task_title
 
 
-def load_agent(agent_directory, sample_batch):
-    config_path = agent_directory / "config.yaml"
-    if config_path.exists():
-        with open(config_path, "r") as f:
-            agent_config = yaml.unsafe_load(f)
-    else:
-        raise FileNotFoundError(
-            f"Configuration file not found at {config_path}. Please ensure the configuration has been set."
-        )
-
-    agent = FQLAgent.create(
-        agent_config["seed"],
-        sample_batch["observations"],
-        sample_batch["actions"],
-        agent_config,
-    )
-
-    agent_path = agent_directory / "params.pkl"
-    if agent_path.exists():
-        with open(agent_path, "rb") as f:
-            state_dict = pickle.load(f)
-        agent = flax.serialization.from_state_dict(agent, state_dict["agent"])
-    else:
-        raise FileNotFoundError(
-            f"Checkpoint not found at {agent_path}. Please ensure the agent has been trained."
-        )
-
-    return agent
-
-
 # Usage:
-# python evaluate_success_rate_correlation.py --env_name=antsoccer-arena-navigate-singletask-task4-v0 \
-#        --save_directory=/work/dlclarge2/amriam-fql/exp/ \
-#        --number_of_seeds=2 --number_of_alphas=20 --eval_episodes=50 \
-#        --model=baseline
+# python evaluate_success_rate_correlation.py --env_name=antsoccer-arena-navigate-singletask-task4-v0 --model=baseline \
+#        --save_directory=/work/dlclarge2/amriam-fql/exp/ --data_directory=/work/dlclarge2/amriam-fql/data/ \
+#        --number_of_seeds=2 --number_of_alphas=20 --eval_episodes=50
 # The values for `--number_of_seeds` and `--number_of_alphas` in addition to the seed
 # have to be the same as the ones used in the training script.
 
@@ -72,12 +38,6 @@ parser.add_argument(
     type=int,
     default=1,
     help="Number of alpha values to use.",
-)
-parser.add_argument(
-    "--model",
-    type=str,
-    default="baseline",
-    help="The environment model to evaluate.",
 )
 parser.add_argument(
     "--eval_episodes",
@@ -112,7 +72,7 @@ real_task = OfflineTaskWithRealEvaluations(
 
 simulated_task = OfflineTaskWithSimulatedEvaluations(
     config.env_name,
-    model=args.model,
+    model=config.model,
     data_directory=config.data_directory,
     save_directory=config.save_directory,
     num_evaluation_envs=args.eval_episodes,
@@ -165,7 +125,7 @@ plt.title(
     f"Simulated and Real Success Rate Correlation for {get_task_title(config.env_name)} task"
 )
 plt.tight_layout()
-plt.savefig(output_path / f"{args.model}_success_rate_correlation.png", dpi=300)
+plt.savefig(output_path / f"{config.model}_success_rate_correlation.png", dpi=300)
 plt.close()
 
 grouped_df = (
@@ -198,6 +158,6 @@ plt.tight_layout()
 plt.xticks(range(-10, 110, 20))
 plt.yticks(range(-10, 110, 20))
 plt.savefig(
-    output_path / f"{args.model}_success_rate_correlation_grouped_alpha.png", dpi=300
+    output_path / f"{config.model}_success_rate_correlation_grouped_alpha.png", dpi=300
 )
 plt.close()
