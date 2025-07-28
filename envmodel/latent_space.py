@@ -6,6 +6,22 @@ import optax
 from flax import linen as nn
 
 
+class LatentCell(nn.Module):
+    latent_dim: int
+    action_dim: int
+    hidden_dim: int
+
+    @nn.compact
+    def __call__(self, z, a):
+        # Predict next latent and termination
+        x = jnp.concatenate([z, a], axis=-1)
+        x = nn.relu(nn.Dense(self.hidden_dim)(x))
+        x = nn.relu(nn.Dense(self.hidden_dim)(x))
+        next_z = nn.Dense(self.latent_dim)(x)
+        termination_logit = nn.Dense(1)(x)
+        return next_z, (next_z, termination_logit)
+
+
 class Encoder(nn.Module):
     latent_dim: int
     hidden_dim: int
@@ -44,6 +60,37 @@ class LatentSpaceEnvModel(nn.Module):
         next_z, terminations = self.state_predictor(observations=z, actions=actions)
         reconstructed_observations = decoder(z)
         next_observations = decoder(z)
+
+        return next_observations, terminations, reconstructed_observations
+
+
+class MultistepLatentSpaceEnvModel(nn.Module):
+    observation_dim: int
+    latent_dim: int
+    hidden_dim: int
+    action_dim: int
+
+    @nn.compact
+    def __call__(self, observations: jnp.ndarray, actions: jnp.ndarray):
+        # observations: [B, T+1, obs_dim], actions: [B, T, act_dim]
+        encoder = Encoder(self.latent_dim, self.hidden_dim)
+        decoder = Decoder(self.observation_dim, self.hidden_dim)
+
+        z = encoder(observations[:, 0])
+
+        # Define the recurrent model
+        cell = nn.scan(
+            LatentCell,
+            variable_broadcast="params",
+            split_rngs={"params": False},
+            in_axes=1,
+            out_axes=1,
+        )(self.latent_dim, self.action_dim, self.hidden_dim)
+
+        _, (next_z, terminations) = cell(z, actions)
+
+        next_observations = decoder(next_z)
+        reconstructed_observations = decoder(z)
 
         return next_observations, terminations, reconstructed_observations
 
