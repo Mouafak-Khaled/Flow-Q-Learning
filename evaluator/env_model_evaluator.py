@@ -97,7 +97,7 @@ class EnvModelEvaluator:
             f"$real2sim={100 * real2sim_info.get('success', 0):.2f}\\%$"
         )
         plt.tight_layout()
-        plt.savefig(f"trajectory_comparison_{self.simulated_task.model}_{get_task_filename(self.simulated_task.env_name)}.png")
+        plt.savefig(f"trajectory_comparison_{self.simulated_task.model_name}_{get_task_filename(self.simulated_task.env_name)}.png")
 
     def close(self):
         self.real_task.close()

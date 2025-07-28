@@ -1,21 +1,21 @@
 import itertools
 import random
+import re
 
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
-import pandas as pd
 import numpy as np
+import pandas as pd
 import seaborn as sns
 from scipy.stats import kendalltau, pearsonr, spearmanr
 
 from argparser import build_env_model_config_from_args, get_env_model_argparser
-from utils.agent import load_agent
 from evaluator.env_model_evaluator import EnvModelEvaluator
 from task.offline_task_real import OfflineTaskWithRealEvaluations
 from task.offline_task_simulated import OfflineTaskWithSimulatedEvaluations
 from trainer.config import ExperimentConfig
+from utils.agent import load_agent
 from utils.tasks import get_task_title
-
 
 # Usage:
 # python evaluate_success_rate_correlation.py --env_name=antsoccer-arena-navigate-singletask-task4-v0 --model=baseline \
@@ -80,11 +80,32 @@ simulated_task = OfflineTaskWithSimulatedEvaluations(
 
 df = pd.DataFrame(columns=["seed", "alpha", "real_success", "sim_success"])
 
+
+def extract_timestamp(file_path):
+    folder_name = file_path.parent.name  # get folder name, not full path
+    match = re.compile(r"_(\d{8}_\d{6})").search(folder_name)
+    return match.group(1) if match else ""
+
+
+def config_to_name(experiment_config: ExperimentConfig) -> str:
+    tuned_hyperparams = [
+        (field, value)
+        for field, value in vars(experiment_config).items()
+        if value is not None
+    ]
+    return "_".join(f"{field}_{value}" for field, value in tuned_hyperparams)
+
+
 for experiment_config in experiment_configs:
+    files = list(
+        (config.save_directory / config.env_name).glob(
+            f"{config_to_name(experiment_config)}_*"
+        )
+    )
+    file_path = sorted(files, key=extract_timestamp)[-1]
+
     agent = load_agent(
-        agent_directory=config.save_directory
-        / config.env_name
-        / f"seed_{experiment_config.seed}_alpha_{experiment_config.alpha}",
+        agent_directory=file_path,
         sample_batch=real_task.sample("train", 1),
     )
 
