@@ -25,7 +25,7 @@ class StrategyEvaluator:
         self.stopping_step = {}
         self.candidates = None
 
-        self.finished_candidates = []
+        self.finished_candidates = set()
         self.candidates = self.strategy.sample()
         for config in self.candidates:
             self.experiments[config] = ExperimentFromFile(
@@ -41,17 +41,21 @@ class StrategyEvaluator:
         while True:
             for config in self.candidates:
                 if self.experiments[config].train(self.config.eval_interval):
-                    self.finished_candidates.append(config)
+                    self.finished_candidates.add(config)
 
             current_step += self.config.eval_interval
 
             # Evaluate experiments
+            score_updated = False
             for config in self.candidates:
                 score = self.experiments[config].evaluate(self.config.eval_episodes)
-                best_score = max(best_score, score)
+                if score > best_score:
+                    best_score = score
+                    score_updated = True
                 self.strategy.update(config, score)
 
-            score_curve[current_step] = best_score
+            if score_updated or current_step == self.config.steps:
+                score_curve[current_step] = best_score
 
             # Sample new candidates based on the strategy
             self.candidates = self.strategy.sample()

@@ -182,9 +182,9 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--model.hidden_dim",
-        type=int,
-        default=128,
+        "--model.hidden_dims",
+        type=literal_eval,
+        default=(128, 128),
         help="The dimension of hidden layers.",
     )
 
@@ -219,12 +219,12 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--model.sequence_length",
         type=int,
-        default=128,
+        default=256,
         help="The length of sequences for the multistep model.",
     )
 
     parser.add_argument(
-        "--steps", type=int, default=10000, help="The number of training steps."
+        "--steps", type=int, default=20000, help="The number of training steps."
     )
     parser.add_argument(
         "--env_name",

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Set
 
 from trainer.config import ExperimentConfig
 
@@ -10,12 +10,12 @@ class HpoStrategy(ABC):
     This class defines the interface for strategies that can be used to sample candidates
     from a population based on their performance history.
     """
-    def __init__(self, population: List[ExperimentConfig], total_evaluations: int, state_dict: dict | None = None):
+    def __init__(self, population: Set[ExperimentConfig], total_evaluations: int, state_dict: dict | None = None):
         """
         Initialize the strategy with an optional state dictionary.
 
         Args:
-            population (List[ExperimentConfig]): The initial population of candidates.
+            population (Set[ExperimentConfig]): The initial population of candidates.
             total_evaluations (int): The total number of evaluations performed.
             state_dict (dict | None): Optional state dictionary to restore the strategy's state.
         """
@@ -48,11 +48,11 @@ class HpoStrategy(ABC):
         pass
 
     @abstractmethod
-    def sample(self) -> List[ExperimentConfig]:
+    def sample(self) -> Set[ExperimentConfig]:
         """
         Sample candidates from the population based on the strategy.
 
         Returns:
-            List[ExperimentConfig]: A list of sampled candidates.
+            Set[ExperimentConfig]: A set of sampled candidates.
         """
         pass
