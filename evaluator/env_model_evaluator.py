@@ -105,3 +105,7 @@ class EnvModelEvaluator:
     def close(self):
         self.real_task.close()
         self.simulated_task.close()
+        del self.real_info
+        del self.real_transitions
+        del self.sim_info
+        del self.sim_transitions
