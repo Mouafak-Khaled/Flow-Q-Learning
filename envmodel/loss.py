@@ -1,3 +1,4 @@
+import jax
 import jax.numpy as jnp
 from typing import Dict, Tuple
 import optax
@@ -26,6 +27,41 @@ def weighted_binary_cross_entropy(
     return loss, logs
 
 
+def focal_loss(
+    predictions: jnp.ndarray,
+    targets: jnp.ndarray,
+    alpha: float = 0.25,
+    gamma: float = 2.0,
+) -> Tuple[jnp.ndarray, Dict[str, jnp.ndarray]]:
+    """
+    Computes focal loss between logits and binary targets.
+
+    Args:
+        predictions: [batch_size] — raw logits (not probabilities)
+        targets: [batch_size] — binary labels (0 or 1)
+        alpha: class balancing factor (typically 0.25)
+        gamma: focusing parameter (typically 2.0)
+    """
+    targets = targets.astype(jnp.float32)
+    probabilities = jax.nn.sigmoid(predictions)
+
+    ce_loss = optax.sigmoid_binary_cross_entropy(predictions, targets)
+
+    pt = jnp.where(targets == 1, probabilities, 1 - probabilities)
+    modulating_factor = (1.0 - pt) ** gamma
+
+    alpha_factor = jnp.where(targets == 1, alpha, 1 - alpha)
+
+    loss = jnp.mean(alpha_factor * modulating_factor * ce_loss)
+
+    logs = {
+        "true_loss": jnp.sum(loss * (targets == 1)) / (jnp.sum(targets == 1) + 1e-8),
+        "false_loss": jnp.sum(loss * (targets == 0)) / (jnp.sum(targets == 0) + 1e-8),
+    }
+
+    return loss, logs
+
+
 def state_prediction_loss(
     predicted_next_observations,
     next_observations,
@@ -40,11 +76,15 @@ def state_prediction_loss(
     next_observation_loss = mean_squared_error(
         predicted_next_observations, next_observations
     )
-    termination_loss, termination_logs = weighted_binary_cross_entropy(
-        predicted_termination,
-        terminations,
-        true_termination_weight,
-    ) if termination_weight > 0 else (0.0, {})
+    termination_loss, termination_logs = (
+        weighted_binary_cross_entropy(
+            predicted_termination,
+            terminations,
+            true_termination_weight,
+        )
+        if termination_weight > 0
+        else (0.0, {})
+    )
     reconstruction_loss = (
         mean_squared_error(reconstructed_observations, observations)
         if reconstruction_weight > 0

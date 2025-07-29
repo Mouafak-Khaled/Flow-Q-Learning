@@ -51,7 +51,7 @@ class StatePredictorTrainer:
                 sample_batch,
             )
             if self.config.termination_weight > 0
-            else lambda _: None
+            else lambda *args, **kwargs: None
         )
 
         self.schedule = optax.cosine_decay_schedule(

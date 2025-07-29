@@ -9,7 +9,7 @@ import yaml
 
 from argparser import build_env_model_config_from_args, get_env_model_argparser
 from envmodel.baseline import BaselineStatePredictor
-from envmodel.loss import state_prediction_loss, weighted_binary_cross_entropy
+from envmodel.loss import focal_loss, state_prediction_loss, weighted_binary_cross_entropy
 from envmodel.multistep import MultistepStatePredictor
 from envmodel.state_predictor_trainer import StatePredictorTrainer
 from envmodel.termination_predictor import TerminationPredictor
@@ -76,10 +76,11 @@ elif config.model == "termination_predictor":
         hidden_dims=config.model_config["hidden_dims"],
     )
 
-    loss_fn = partial(
-        weighted_binary_cross_entropy,
-        true_weight=config.true_termination_weight,
-    )
+    loss_fn = focal_loss
+    # loss_fn = partial(
+    #     weighted_binary_cross_entropy,
+    #     true_weight=config.true_termination_weight,
+    # )
 else:
     raise ValueError(f"Unknown model type: {config.model}")
 
