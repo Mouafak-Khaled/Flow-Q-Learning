@@ -191,7 +191,7 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--termination_predictor.hidden_dims",
         type=literal_eval,
-        default=(64, 128, 64),
+        default=(32, 32),
         help="The dimension of hidden layers.",
     )
 
@@ -205,19 +205,19 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--termination_predictor.true_termination_weight",
         type=float,
-        default=30.0,
+        default=1000.0,
         help="Weight for the true class in the termination loss in the env model.",
     )
 
     parser.add_argument(
         "--termination_weight",
         type=float,
-        default=1.0,
+        default=100.0,
         help="Weight for the termination loss in the env model.",
     )
 
     parser.add_argument(
-        "--.reconstruction_weight",
+        "--reconstruction_weight",
         type=float,
         default=1.0,
         help="Weight for the reconstruction loss in the env model.",
@@ -249,7 +249,7 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--batch_size", type=int, default=256, help="Batch size.")
 
     parser.add_argument(
-        "--val_batches", type=int, default=20, help="Number of validation batches."
+        "--val_batches", type=int, default=50, help="Number of validation batches."
     )
 
     parser.add_argument(

@@ -5,6 +5,7 @@ import flax
 import ogbench
 import wandb
 import yaml
+import jax.numpy as jnp
 
 from argparser import build_env_model_config_from_args, get_env_model_argparser
 from envmodel.baseline import BaselineStatePredictor
@@ -56,15 +57,22 @@ else:
 def loss_fn(
     predicted_next_observations,
     next_observations,
-    predicted_terminations,
+    predicted_termination_ground_truth_based,
+    predicted_termination_prediction_based,
     terminations,
 ):
     next_observation_loss = mean_squared_error(
         predicted_next_observations, next_observations
     )
     termination_loss, termination_logs = weighted_binary_cross_entropy(
-        predicted_terminations,
-        terminations,
+        jnp.concatenate(
+            [
+                predicted_termination_ground_truth_based,
+                predicted_termination_prediction_based,
+            ],
+            axis=0,
+        ),
+        jnp.concatenate([terminations, terminations], axis=0),
         config.termination_predictor_config["true_termination_weight"],
     )
 

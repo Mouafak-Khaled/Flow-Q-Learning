@@ -66,10 +66,19 @@ class Trainer:
         predicted_next_observation = self.state_predictor.apply(
             params["state_predictor"], **batch, key=key
         )
-        predicted_termination = self.termination_predictor.apply(
+        predicted_termination_ground_truth_based = self.termination_predictor.apply(
             params["termination_predictor"], **batch, key=key
         )
-        return predicted_next_observation, predicted_termination
+        kwargs = {**batch}
+        kwargs["next_observations"] = predicted_next_observation
+        predicted_termination_prediction_based = self.termination_predictor.apply(
+            params["termination_predictor"], **kwargs, key=key
+        )
+        return (
+            predicted_next_observation,
+            predicted_termination_ground_truth_based,
+            predicted_termination_prediction_based,
+        )
 
     @partial(jax.jit, static_argnums=0)
     def train_step(
@@ -82,13 +91,16 @@ class Trainer:
 
         def loss_fn(params):
             rng_, key = jax.random.split(rng)
-            predicted_next_observation, predicted_termination = self.apply(
-                params, batch, key=key
-            )
+            (
+                predicted_next_observation,
+                predicted_termination_ground_truth_based,
+                predicted_termination_prediction_based,
+            ) = self.apply(params, batch, key=key)
             loss, logs = self.loss_fn(
                 predicted_next_observation,
                 batch["next_observations"],
-                predicted_termination,
+                predicted_termination_ground_truth_based,
+                predicted_termination_prediction_based,
                 batch["rewards"] == 0,
             )
             return loss, (logs, rng_)
@@ -106,19 +118,24 @@ class Trainer:
         state: train_state.TrainState,
         batch: Dict[str, jnp.ndarray],
         rng: jax.Array,
-    ) -> Tuple[jnp.ndarray, jax.Array]:
+    ) -> Tuple[Dict[str, jnp.ndarray], jax.Array]:
         """Evaluates the model on a batch without updating parameters."""
         rng, key = jax.random.split(rng)
-        predicted_next_observation, predicted_termination = self.apply(
+        (
+            predicted_next_observation,
+            predicted_termination_ground_truth_based,
+            predicted_termination_prediction_based,
+        ) = self.apply(
             state.params, batch, key=key
         )
-        loss, logs = self.loss_fn(
+        _, logs = self.loss_fn(
             predicted_next_observation,
             batch["next_observations"],
-            predicted_termination,
+            predicted_termination_ground_truth_based,
+            predicted_termination_prediction_based,
             batch["rewards"] == 0,
         )
-        return loss, rng
+        return logs, rng
 
     def train(self) -> None:
         """Runs the main training loop."""
@@ -127,18 +144,19 @@ class Trainer:
 
         for step in trange(self.config.steps, desc="Training"):
             if step % 100 == 0:
-                val_losses = []
+                val_logs = []
                 for _ in range(self.config.val_batches):
                     val_batch_np = self.val_loader.sample(self.config.batch_size)
                     val_batch = {k: jnp.array(v) for k, v in val_batch_np.items()}
 
                     # Evaluate using the current state's parameters
-                    val_loss, self.rng = self.eval_step(state, val_batch, self.rng)
-                    val_losses.append(val_loss)
+                    logs, self.rng = self.eval_step(state, val_batch, self.rng)
+                    val_logs.append(logs)
 
-                avg_val_loss = jnp.mean(jnp.array(val_losses))
-                if self.logger:
-                    self.logger.log({"val/loss": avg_val_loss}, step=step)
+                for k in val_logs[0].keys():
+                    avg_val_log = jnp.mean(jnp.array([log[k] for log in val_logs]))
+                    if self.logger:
+                        self.logger.log({f"val/{k}": avg_val_log}, step=step)
 
             # Sample a new random batch each step and convert to JAX arrays
             batch_np = self.train_loader.sample(self.config.batch_size)
@@ -157,15 +175,16 @@ class Trainer:
 
         self.state = state
 
-        val_losses = []
+        val_logs = []
         for _ in range(self.config.val_batches):
             val_batch_np = self.val_loader.sample(self.config.batch_size)
             val_batch = {k: jnp.array(v) for k, v in val_batch_np.items()}
 
             # Evaluate using the current state's parameters
-            val_loss, self.rng = self.eval_step(state, val_batch, self.rng)
-            val_losses.append(val_loss)
+            logs, self.rng = self.eval_step(state, val_batch, self.rng)
+            val_logs.append(logs)
 
-        avg_val_loss = jnp.mean(jnp.array(val_losses))
-        if self.logger:
-            self.logger.log({"val/loss": avg_val_loss}, step=step)
+        for k in val_logs[0].keys():
+            avg_val_log = jnp.mean(jnp.array([log[k] for log in val_logs]))
+            if self.logger:
+                self.logger.log({f"val/{k}": avg_val_log}, step=step)
