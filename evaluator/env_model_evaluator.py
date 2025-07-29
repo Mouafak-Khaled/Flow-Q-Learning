@@ -7,7 +7,7 @@ from evaluator.evaluation import evaluate_actor_fn, evaluate_agent
 from fql.agents.fql import FQLAgent
 from task.offline_task_real import OfflineTaskWithRealEvaluations
 from task.offline_task_simulated import OfflineTaskWithSimulatedEvaluations
-from utils.tasks import get_task_filename
+from utils.tasks import get_task_filename, get_task_title
 
 
 class EnvModelEvaluator:
@@ -92,12 +92,15 @@ class EnvModelEvaluator:
         plt.legend()
 
         plt.title(
+            # TODO: add the task and model names to the title
             "Comparing Trajectories: Model vs Real Environment\n"
             f"Success Rate: $real={100 * self.real_info['success']:.2f}\\%$, $sim={100 * self.sim_info['success']:.2f}\\%$\n"
             f"$real2sim={100 * real2sim_info.get('success', 0):.2f}\\%$"
         )
         plt.tight_layout()
-        plt.savefig(f"trajectory_comparison_{self.simulated_task.model_name}_{get_task_filename(self.simulated_task.env_name)}.png")
+        plt.savefig(
+            f"report/trajectory_comparison_{self.simulated_task.model}_{get_task_filename(self.simulated_task.env_name)}.png"
+        )
 
     def close(self):
         self.real_task.close()
