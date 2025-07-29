@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 
@@ -82,8 +83,8 @@ class OfflineTaskWithSimulatedEvaluations(Task):
         return merged_observations, merged_infos
 
     def step(self, actions):
-        next_observations = self.state_predictor(self.current_observations, actions)
-        terminations = self.termination_predictor(next_observations)
+        next_observations, _ = self.state_predictor(self.current_observations, actions)
+        terminations = self.termination_predictor(next_observations, train=False, rng=jax.random.PRNGKey(0))
 
         next_observations = jnp.asarray(next_observations)
         terminations = jnp.asarray(terminations) > 0

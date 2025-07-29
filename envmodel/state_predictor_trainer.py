@@ -43,12 +43,16 @@ class StatePredictorTrainer:
             self.rng, sample_batch["observations"], sample_batch["actions"]
         )
 
-        self.termination_predictor = load_model(
-            self.config.save_directory,
-            self.config.env_name,
-            "termination_predictor",
-            sample_batch,
-        ) if self.config.termination_weight > 0 else lambda _: None
+        self.termination_predictor = (
+            load_model(
+                self.config.save_directory,
+                self.config.env_name,
+                "termination_predictor",
+                sample_batch,
+            )
+            if self.config.termination_weight > 0
+            else lambda _: None
+        )
 
         self.schedule = optax.cosine_decay_schedule(
             init_value=self.config.init_learning_rate,
@@ -73,7 +77,7 @@ class StatePredictorTrainer:
                 params, batch["observations"], batch["actions"]
             )
             predicted_termination = self.termination_predictor(
-                predicted_next_observation
+                predicted_next_observation, train=False, rng=jax.random.PRNGKey(0)
             )
             loss, logs = self.loss_fn(
                 predicted_next_observation,
@@ -100,7 +104,9 @@ class StatePredictorTrainer:
         predicted_next_observation, reconstructed_observations = self.model.apply(
             state.params, batch["observations"], batch["actions"]
         )
-        predicted_termination = self.termination_predictor(predicted_next_observation)
+        predicted_termination = self.termination_predictor(
+            predicted_next_observation, train=False, rng=jax.random.PRNGKey(0)
+        )
         _, logs = self.loss_fn(
             predicted_next_observation,
             batch["next_observations"],

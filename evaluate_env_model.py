@@ -24,7 +24,7 @@ real_task = OfflineTaskWithRealEvaluations(
 
 simulated_task = OfflineTaskWithSimulatedEvaluations(
     config.env_name,
-    model=config.state_predictor,
+    model=config.model,
     data_directory=config.data_directory,
     save_directory=config.save_directory,
     num_evaluation_envs=args.eval_episodes,
