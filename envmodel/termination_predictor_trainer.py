@@ -38,7 +38,9 @@ class TerminationPredictorTrainer:
         self.rng = jax.random.PRNGKey(self.config.seed)
 
         sample_batch = self.train_loader.sample(self.config.batch_size)
-        self.params = self.model.init(self.rng, sample_batch["observations"])
+        self.params = self.model.init(
+            self.rng, sample_batch["observations"], train=True, rng=self.rng
+        )
 
         self.schedule = optax.cosine_decay_schedule(
             init_value=self.config.init_learning_rate,
@@ -59,7 +61,9 @@ class TerminationPredictorTrainer:
         """Performs a single training step (forward pass, loss calculation, gradients, update)."""
 
         def loss_fn(params):
-            predicted_termination = self.model.apply(params, batch["next_observations"])
+            predicted_termination = self.model.apply(
+                params, batch["next_observations"], train=True, rng=self.rng
+            )
             loss, logs = self.loss_fn(
                 predicted_termination,
                 batch["rewards"] == 0,
@@ -79,7 +83,7 @@ class TerminationPredictorTrainer:
     ) -> Dict[str, jnp.ndarray]:
         """Evaluates the model on a batch without updating parameters."""
         predicted_termination = self.model.apply(
-            state.params, batch["next_observations"]
+            state.params, batch["next_observations"], train=False, rng=self.rng
         )
         loss, logs = self.loss_fn(
             predicted_termination,
@@ -90,8 +94,10 @@ class TerminationPredictorTrainer:
         logs["accuracy"] = jnp.mean(predictions == targets)
         logs["precision"] = jnp.sum(predictions & targets) / jnp.sum(predictions)
         logs["recall"] = jnp.sum(predictions & targets) / jnp.sum(targets)
-        logs["f1"] = 2 * (logs["precision"] * logs["recall"]) / (
-            logs["precision"] + logs["recall"] + 1e-8
+        logs["f1"] = (
+            2
+            * (logs["precision"] * logs["recall"])
+            / (logs["precision"] + logs["recall"] + 1e-8)
         )
         return {**logs, "loss": loss}
 
