@@ -8,11 +8,13 @@ import wandb
 import yaml
 
 from argparser import build_env_model_config_from_args, get_env_model_argparser
-from envmodel.baseline import BaselineEnvModel, baseline_loss
-from envmodel.initial_observation import InitialObservationEnvModel, vae_loss
-from envmodel.multistep import MultistepEnvModel
-from envmodel.trainer import Trainer
-from utils.data_loader import InitialObservationLoader, StepLoader, MultistepLoader
+from envmodel.baseline import BaselineStatePredictor
+from envmodel.loss import state_prediction_loss, weighted_binary_cross_entropy
+from envmodel.multistep import MultistepStatePredictor
+from envmodel.state_predictor_trainer import StatePredictorTrainer
+from envmodel.termination_predictor import TerminationPredictor
+from envmodel.termination_predictor_trainer import TerminationPredictorTrainer
+from utils.data_loader import MultistepLoader, StepLoader
 
 args = get_env_model_argparser().parse_args()
 config = build_env_model_config_from_args(args)
@@ -29,53 +31,58 @@ if config.model == "baseline":
     # Sample once to get shapes
     sample_batch = train_dataloader.sample(config.batch_size)
 
-    env_model = BaselineEnvModel(
+    model = BaselineStatePredictor(
         observation_dimension=sample_batch["observations"].shape[-1],
         action_dimension=sample_batch["actions"].shape[-1],
         hidden_dims=config.model_config["hidden_dims"],
     )
 
     loss_fn = partial(
-        baseline_loss,
-        termination_weight=config.model_config["termination_weight"],
-        termination_true_weight=config.model_config["termination_true_weight"],
+        state_prediction_loss,
+        true_termination_weight=config.true_termination_weight,
+        termination_weight=config.termination_weight,
+        reconstruction_weight=0.0,
     )
 elif config.model == "multistep":
-    train_dataloader = MultistepLoader(train_dataset, sequence_length=config.model_config["sequence_length"])
-    val_dataloader = MultistepLoader(val_dataset, sequence_length=config.model_config["sequence_length"])
+    train_dataloader = MultistepLoader(
+        train_dataset, sequence_length=config.sequence_length
+    )
+    val_dataloader = MultistepLoader(
+        val_dataset, sequence_length=config.sequence_length
+    )
 
     sample_batch = train_dataloader.sample(config.batch_size)
 
-    env_model = MultistepEnvModel(
+    model = MultistepStatePredictor(
         observation_dimension=sample_batch["observations"].shape[-1],
         action_dimension=sample_batch["actions"].shape[-1],
         hidden_dims=config.model_config["hidden_dims"],
     )
 
     loss_fn = partial(
-        baseline_loss,
-        termination_weight=config.model_config["termination_weight"],
-        termination_true_weight=config.model_config["termination_true_weight"],
+        state_prediction_loss,
+        true_termination_weight=config.true_termination_weight,
+        termination_weight=config.termination_weight,
+        reconstruction_weight=0.0,
     )
-elif config.model == "initial_observation":
-    train_dataloader = InitialObservationLoader(train_dataset)
-    val_dataloader = InitialObservationLoader(val_dataset)
+elif config.model == "termination_predictor":
+    train_dataloader = StepLoader(train_dataset)
+    val_dataloader = StepLoader(val_dataset)
 
-    # Sample once to get shapes
     sample_batch = train_dataloader.sample(config.batch_size)
 
-    env_model = InitialObservationEnvModel(
+    model = TerminationPredictor(
         observation_dimension=sample_batch["observations"].shape[-1],
-        latent_dimension=config.model_config["latent_dim"],
         hidden_dims=config.model_config["hidden_dims"],
     )
 
     loss_fn = partial(
-        vae_loss,
-        reconstruction_weight=config.model_config["reconstruction_weight"],
+        weighted_binary_cross_entropy,
+        true_weight=config.true_termination_weight,
     )
 else:
-    raise ValueError(f"Unknown model type: {args.model}")
+    raise ValueError(f"Unknown model type: {config.model}")
+
 
 # --- Weights and Biases ---
 logger = wandb.init(
@@ -86,14 +93,24 @@ logger = wandb.init(
 )
 
 # --- Trainer initialization and training ---
-trainer = Trainer(
-    model=env_model,
-    train_loader=train_dataloader,
-    val_loader=val_dataloader,
-    loss_fn=loss_fn,
-    config=config,
-    logger=logger,
-)
+if config.model == "termination_predictor":
+    trainer = TerminationPredictorTrainer(
+        model=model,
+        train_loader=train_dataloader,
+        val_loader=val_dataloader,
+        loss_fn=loss_fn,
+        config=config,
+        logger=logger,
+    )
+else:
+    trainer = StatePredictorTrainer(
+        model=model,
+        train_loader=train_dataloader,
+        val_loader=val_dataloader,
+        loss_fn=loss_fn,
+        config=config,
+        logger=logger,
+    )
 
 trainer.train()
 

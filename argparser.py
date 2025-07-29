@@ -184,7 +184,7 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--model.hidden_dims",
         type=literal_eval,
-        default=(128, 128),
+        default=(128, 256, 128),
         help="The dimension of hidden layers.",
     )
 
@@ -196,28 +196,28 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--model.termination_true_weight",
+        "--true_termination_weight",
         type=float,
         default=30.0,
         help="Weight for the true class in the termination loss in the env model.",
     )
 
     parser.add_argument(
-        "--model.termination_weight",
+        "--termination_weight",
         type=float,
         default=1.0,
         help="Weight for the termination loss in the env model.",
     )
 
     parser.add_argument(
-        "--model.reconstruction_weight",
+        "--reconstruction_weight",
         type=float,
         default=1.0,
         help="Weight for the reconstruction loss in the env model.",
     )
 
     parser.add_argument(
-        "--model.sequence_length",
+        "--sequence_length",
         type=int,
         default=256,
         help="The length of sequences for the multistep model.",
@@ -242,7 +242,7 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--batch_size", type=int, default=256, help="Batch size.")
 
     parser.add_argument(
-        "--val_batches", type=int, default=20, help="Number of validation batches."
+        "--val_batches", type=int, default=50, help="Number of validation batches."
     )
 
     parser.add_argument(
@@ -285,7 +285,8 @@ def build_env_model_config_from_args(args: argparse.Namespace) -> EnvModelTraine
         k: v for k, v in trainer_kwargs.items() if k in trainer_config_fields
     }
     trainer_config = EnvModelTrainerConfig(
-        **filtered_trainer_kwargs, model_config=model_config
+        **filtered_trainer_kwargs,
+        model_config=model_config,
     )
 
     return trainer_config

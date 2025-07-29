@@ -72,7 +72,7 @@ real_task = OfflineTaskWithRealEvaluations(
 
 simulated_task = OfflineTaskWithSimulatedEvaluations(
     config.env_name,
-    model=config.model,
+    model=config.state_predictor,
     data_directory=config.data_directory,
     save_directory=config.save_directory,
     num_evaluation_envs=args.eval_episodes,
@@ -144,7 +144,7 @@ plt.title(
 )
 plt.tight_layout()
 plt.savefig(
-    f"report/success_rate_correlation_{config.model}_{get_task_filename(config.env_name)}.png",
+    f"report/success_rate_correlation_{config.state_predictor}_{get_task_filename(config.env_name)}.png",
     dpi=300,
 )
 plt.close()
@@ -179,7 +179,7 @@ plt.tight_layout()
 plt.xticks(range(-10, 110, 20))
 plt.yticks(range(-10, 110, 20))
 plt.savefig(
-    f"report/success_rate_correlation_grouped_by_alpha_{config.model}_{get_task_filename(config.env_name)}.png",
+    f"report/success_rate_correlation_grouped_by_alpha_{config.state_predictor}_{get_task_filename(config.env_name)}.png",
     dpi=300,
 )
 plt.close()
