@@ -48,7 +48,7 @@ class StatePredictorTrainer:
             self.config.env_name,
             "termination_predictor",
             sample_batch,
-        )
+        ) if self.config.termination_weight > 0 else lambda _: None
 
         self.schedule = optax.cosine_decay_schedule(
             init_value=self.config.init_learning_rate,
@@ -69,7 +69,7 @@ class StatePredictorTrainer:
         """Performs a single training step (forward pass, loss calculation, gradients, update)."""
 
         def loss_fn(params):
-            predicted_next_observation = self.model.apply(
+            predicted_next_observation, reconstructed_observations = self.model.apply(
                 params, batch["observations"], batch["actions"]
             )
             predicted_termination = self.termination_predictor(
@@ -80,6 +80,8 @@ class StatePredictorTrainer:
                 batch["next_observations"],
                 predicted_termination,
                 batch["rewards"] == 0,
+                reconstructed_observations,
+                batch["observations"],
             )
             return loss, logs
 

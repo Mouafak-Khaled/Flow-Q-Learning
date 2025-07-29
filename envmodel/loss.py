@@ -44,7 +44,7 @@ def state_prediction_loss(
         predicted_termination,
         terminations,
         true_termination_weight,
-    )
+    ) if termination_weight > 0 else (0.0, {})
     reconstruction_loss = (
         mean_squared_error(reconstructed_observations, observations)
         if reconstruction_weight > 0
@@ -59,11 +59,12 @@ def state_prediction_loss(
 
     logs = {
         "next_observation_loss": next_observation_loss,
-        "termination_loss": termination_loss,
-        "true_termination_loss": termination_logs["true_loss"],
-        "false_termination_loss": termination_logs["false_loss"],
         "loss": loss,
     }
+    if termination_weight > 0:
+        logs["termination_loss"] = termination_loss
+        logs["true_termination_loss"] = termination_logs["true_loss"]
+        logs["false_termination_loss"] = termination_logs["false_loss"]
     if reconstruction_weight > 0:
         logs["reconstruction_loss"] = reconstruction_loss
 
