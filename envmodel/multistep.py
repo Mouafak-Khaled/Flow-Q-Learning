@@ -20,12 +20,12 @@ class Cell(nn.Module):
 
     @nn.compact
     def __call__(
-        self, observations, actions, **kwargs
-    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        next_observations = self.cell(
-            observations=observations, actions=actions, **kwargs
+        self, observations: jnp.ndarray, actions: jnp.ndarray
+    ) -> Tuple[jnp.ndarray, Tuple[jnp.ndarray, jnp.ndarray]]:
+        next_observations, reconstructed_observations = self.cell(
+            observations=observations, actions=actions
         )
-        return next_observations, next_observations
+        return next_observations, (next_observations, reconstructed_observations)
 
 
 class MultistepStatePredictor(nn.Module):
@@ -35,7 +35,7 @@ class MultistepStatePredictor(nn.Module):
 
     @nn.compact
     def __call__(
-        self, observations, actions, **kwargs
+        self, observations: jnp.ndarray, actions: jnp.ndarray
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         model = nn.scan(
             Cell,
@@ -45,10 +45,10 @@ class MultistepStatePredictor(nn.Module):
             out_axes=1,
         )
 
-        _, next_observations = model(
+        _, (next_observations, reconstructed_observations) = model(
             observation_dimension=self.observation_dimension,
             action_dimension=self.action_dimension,
             hidden_dims=self.hidden_dims,
         )(observations[:, 0, :], actions)
 
-        return next_observations
+        return next_observations, reconstructed_observations

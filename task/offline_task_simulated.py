@@ -1,18 +1,13 @@
 from pathlib import Path
 from typing import Literal
 
-import flax
-import jax
 import jax.numpy as jnp
 import numpy as np
-import yaml
 
-from envmodel.baseline import BaselineStatePredictor
-from envmodel.multistep import MultistepStatePredictor
-from envmodel.termination_predictor import TerminationPredictor
 from fql.envs.env_utils import make_env_and_datasets
 from fql.utils.datasets import Dataset, ReplayBuffer
 from task.task import Task
+from utils.envmodel import load_model
 
 
 class OfflineTaskWithSimulatedEvaluations(Task):
@@ -40,74 +35,16 @@ class OfflineTaskWithSimulatedEvaluations(Task):
             dict(self.train_dataset), size=max(buffer_size, self.train_dataset.size + 1)
         )
 
-        self.params = {}
-
-        env_model_config_path = (
-            save_directory / env_name / "env_models" / f"{model}_config.yaml"
-        )
-        if env_model_config_path.exists():
-            with open(env_model_config_path, "r") as f:
-                model_config = yaml.unsafe_load(f)
-        else:
-            raise FileNotFoundError(
-                f"Configuration file not found at {env_model_config_path}. Please ensure the configuration has been set."
-            )
-
         example_batch = self.train_dataset.sample(1)
-        self.state_predictor = BaselineStatePredictor(
-            observation_dimension=example_batch["observations"].shape[-1],
-            action_dimension=example_batch["actions"].shape[-1],
-            hidden_dims=model_config["hidden_dims"],
+        self.state_predictor = load_model(
+            save_directory, env_name, model, example_batch
         )
 
-        env_model_path = save_directory / env_name / "env_models" / f"{model}.pt"
-        if env_model_path.exists():
-            with open(env_model_path, "rb") as f:
-                params_bytes = f.read()
-        else:
-            raise FileNotFoundError(
-                f"Model file not found at {env_model_path}. Please ensure the model has been trained."
-            )
-
-        if model == "baseline":
-            self.params["state_predictor"] = flax.serialization.from_bytes(None, params_bytes)
-        elif model == "multistep":
-            self.params["state_predictor"] = {
-                # TODO: This is a workaround, we need to fix the model structure probably
-                #       probably by giving more meaningful names to the flax modules 
-                "params": flax.serialization.from_bytes(None, params_bytes)["params"]["ScanCell_0"]["cell"]
-            }
-        else:
-            raise ValueError(f"Unknown model type: {model}")
-
-        env_model_config_path = (
-            save_directory / env_name / "env_models" / "termination_predictor_config.yaml"
-        )
-        if env_model_config_path.exists():
-            with open(env_model_config_path, "r") as f:
-                model_config = yaml.unsafe_load(f)
-        else:
-            raise FileNotFoundError(
-                f"Configuration file not found at {env_model_config_path}. Please ensure the configuration has been set."
-            )
-
-        self.termination_predictor = TerminationPredictor(
-            observation_dimension=example_batch["observations"].shape[-1],
-            hidden_dims=model_config["hidden_dims"],
+        self.termination_predictor = load_model(
+            save_directory, env_name, "termination_predictor", example_batch
         )
 
-        env_model_path = save_directory / env_name / "env_models" / "termination_predictor.pt"
-        if env_model_path.exists():
-            with open(env_model_path, "rb") as f:
-                params_bytes = f.read()
-        else:
-            raise FileNotFoundError(
-                f"Model file not found at {env_model_path}. Please ensure the model has been trained."
-            )
-
-        self.params["termination_predictor"] = flax.serialization.from_bytes(None, params_bytes)
-
-        self.current_obs = None
+        self.current_observations = None
         self.episode_steps = 0
         self.model = model
         self.env_name = env_name
@@ -138,25 +75,21 @@ class OfflineTaskWithSimulatedEvaluations(Task):
 
         merged_observations = np.array(observations)
         merged_infos = list(infos)
-        self.current_obs = merged_observations
+        self.current_observations = merged_observations
         self.episode_steps = 0
         self.invalidate = [False] * len(self.eval_envs)
 
         return merged_observations, merged_infos
 
     def step(self, actions):
-        next_observations = self.state_predictor.apply(
-            self.params["state_predictor"], self.current_obs, actions
-        )
-        terminations = self.termination_predictor.apply(
-            self.params["termination_predictor"], next_observations
-        )
+        next_observations = self.state_predictor(self.current_observations, actions)
+        terminations = self.termination_predictor(next_observations)
 
         next_observations = jnp.asarray(next_observations)
         terminations = jnp.asarray(terminations) > 0
         reward = jnp.where(terminations, 0, -1)
 
-        self.current_obs = next_observations
+        self.current_observations = next_observations
         self.episode_steps += 1
 
         truncations = self.episode_steps >= self.max_episode_steps

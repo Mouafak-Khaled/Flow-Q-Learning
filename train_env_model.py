@@ -1,19 +1,20 @@
 from dataclasses import asdict
+from functools import partial
 from pathlib import Path
 
 import flax
 import ogbench
 import wandb
 import yaml
-import jax.numpy as jnp
 
 from argparser import build_env_model_config_from_args, get_env_model_argparser
 from envmodel.baseline import BaselineStatePredictor
-from envmodel.loss import mean_squared_error, weighted_binary_cross_entropy
+from envmodel.loss import state_prediction_loss, weighted_binary_cross_entropy
 from envmodel.multistep import MultistepStatePredictor
+from envmodel.state_predictor_trainer import StatePredictorTrainer
 from envmodel.termination_predictor import TerminationPredictor
-from envmodel.trainer import Trainer
-from utils.data_loader import StepLoader, MultistepLoader
+from envmodel.termination_predictor_trainer import TerminationPredictorTrainer
+from utils.data_loader import MultistepLoader, StepLoader
 
 args = get_env_model_argparser().parse_args()
 config = build_env_model_config_from_args(args)
@@ -23,19 +24,26 @@ env, train_dataset, val_dataset = ogbench.make_env_and_datasets(
 )
 
 # --- Model & DataLoader ---
-if config.state_predictor == "baseline":
+if config.model == "baseline":
     train_dataloader = StepLoader(train_dataset)
     val_dataloader = StepLoader(val_dataset)
 
     # Sample once to get shapes
     sample_batch = train_dataloader.sample(config.batch_size)
 
-    state_predictor = BaselineStatePredictor(
+    model = BaselineStatePredictor(
         observation_dimension=sample_batch["observations"].shape[-1],
         action_dimension=sample_batch["actions"].shape[-1],
-        hidden_dims=config.state_predictor_config["hidden_dims"],
+        hidden_dims=config.model_config["hidden_dims"],
     )
-elif config.state_predictor == "multistep":
+
+    loss_fn = partial(
+        state_prediction_loss,
+        true_termination_weight=config.true_termination_weight,
+        termination_weight=config.termination_weight,
+        reconstruction_weight=0.0,
+    )
+elif config.model == "multistep":
     train_dataloader = MultistepLoader(
         train_dataset, sequence_length=config.sequence_length
     )
@@ -45,97 +53,77 @@ elif config.state_predictor == "multistep":
 
     sample_batch = train_dataloader.sample(config.batch_size)
 
-    state_predictor = MultistepStatePredictor(
+    model = MultistepStatePredictor(
         observation_dimension=sample_batch["observations"].shape[-1],
         action_dimension=sample_batch["actions"].shape[-1],
-        hidden_dims=config.state_predictor_config["hidden_dims"],
+        hidden_dims=config.model_config["hidden_dims"],
+    )
+
+    loss_fn = partial(
+        state_prediction_loss,
+        true_termination_weight=config.true_termination_weight,
+        termination_weight=config.termination_weight,
+        reconstruction_weight=0.0,
+    )
+elif config.model == "termination_predictor":
+    train_dataloader = StepLoader(train_dataset)
+    val_dataloader = StepLoader(val_dataset)
+
+    sample_batch = train_dataloader.sample(config.batch_size)
+
+    model = TerminationPredictor(
+        observation_dimension=sample_batch["observations"].shape[-1],
+        hidden_dims=config.model_config["hidden_dims"],
+    )
+
+    loss_fn = partial(
+        weighted_binary_cross_entropy,
+        true_weight=config.true_termination_weight,
     )
 else:
-    raise ValueError(f"Unknown model type: {config.state_predictor}")
+    raise ValueError(f"Unknown model type: {config.model}")
 
-
-def loss_fn(
-    predicted_next_observations,
-    next_observations,
-    predicted_termination_ground_truth_based,
-    predicted_termination_prediction_based,
-    terminations,
-):
-    next_observation_loss = mean_squared_error(
-        predicted_next_observations, next_observations
-    )
-    termination_loss, termination_logs = weighted_binary_cross_entropy(
-        jnp.concatenate(
-            [
-                predicted_termination_ground_truth_based,
-                predicted_termination_prediction_based,
-            ],
-            axis=0,
-        ),
-        jnp.concatenate([terminations, terminations], axis=0),
-        config.termination_predictor_config["true_termination_weight"],
-    )
-
-    loss = (
-        next_observation_loss + config.termination_loss_weight * termination_loss
-    ) / (1 + config.termination_loss_weight)
-    return (
-        loss,
-        {
-            "next_observation_loss": next_observation_loss,
-            "termination_loss": termination_loss,
-            "true_termination_loss": termination_logs["true_loss"],
-            "false_termination_loss": termination_logs["false_loss"],
-            "loss": loss,
-        },
-    )
-
-
-termination_predictor = TerminationPredictor(
-    observation_dimension=sample_batch["observations"].shape[-1],
-    hidden_dims=config.termination_predictor_config["hidden_dims"],
-)
 
 # --- Weights and Biases ---
 logger = wandb.init(
-    name=f"{config.env_name}_{config.state_predictor}",
+    name=f"{config.env_name}_{config.model}",
     project="fql_env_model",
     config=asdict(config),
     dir="exp/",
 )
 
 # --- Trainer initialization and training ---
-trainer = Trainer(
-    state_predictor=state_predictor,
-    termination_predictor=termination_predictor,
-    train_loader=train_dataloader,
-    val_loader=val_dataloader,
-    loss_fn=loss_fn,
-    config=config,
-    logger=logger,
-)
+if config.model == "termination_predictor":
+    trainer = TerminationPredictorTrainer(
+        model=model,
+        train_loader=train_dataloader,
+        val_loader=val_dataloader,
+        loss_fn=loss_fn,
+        config=config,
+        logger=logger,
+    )
+else:
+    trainer = StatePredictorTrainer(
+        model=model,
+        train_loader=train_dataloader,
+        val_loader=val_dataloader,
+        loss_fn=loss_fn,
+        config=config,
+        logger=logger,
+    )
 
 trainer.train()
 
 save_dir = Path(config.save_directory) / config.env_name / "env_models"
 save_dir.mkdir(parents=True, exist_ok=True)
 
-config_path = save_dir / f"{config.state_predictor}_config.yaml"
+config_path = save_dir / f"{config.model}_config.yaml"
 with open(config_path, "w") as f:
-    yaml.dump(config.state_predictor_config, f)
+    yaml.dump(config.model_config, f)
 
-model_path = save_dir / f"{config.state_predictor}.pt"
+model_path = save_dir / f"{config.model}.pt"
 with open(model_path, "wb") as f:
-    f.write(flax.serialization.to_bytes(trainer.state.params["state_predictor"]))
-wandb.save(model_path)
-
-config_path = save_dir / "termination_predictor_config.yaml"
-with open(config_path, "w") as f:
-    yaml.dump(config.termination_predictor_config, f)
-
-model_path = save_dir / "termination_predictor.pt"
-with open(model_path, "wb") as f:
-    f.write(flax.serialization.to_bytes(trainer.state.params["termination_predictor"]))
+    f.write(flax.serialization.to_bytes(trainer.state.params))
 wandb.save(model_path)
 
 logger.finish()

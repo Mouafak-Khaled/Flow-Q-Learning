@@ -24,3 +24,47 @@ def weighted_binary_cross_entropy(
     }
 
     return loss, logs
+
+
+def state_prediction_loss(
+    predicted_next_observations,
+    next_observations,
+    predicted_termination,
+    terminations,
+    reconstructed_observations: jnp.ndarray,
+    observations: jnp.ndarray,
+    true_termination_weight: float,
+    termination_weight: float,
+    reconstruction_weight: float,
+):
+    next_observation_loss = mean_squared_error(
+        predicted_next_observations, next_observations
+    )
+    termination_loss, termination_logs = weighted_binary_cross_entropy(
+        predicted_termination,
+        terminations,
+        true_termination_weight,
+    )
+    reconstruction_loss = (
+        mean_squared_error(reconstructed_observations, observations)
+        if reconstruction_weight > 0
+        else 0.0
+    )
+
+    loss = (
+        next_observation_loss
+        + termination_weight * termination_loss
+        + reconstruction_weight * reconstruction_loss
+    ) / (1 + termination_weight + reconstruction_weight)
+
+    logs = {
+        "next_observation_loss": next_observation_loss,
+        "termination_loss": termination_loss,
+        "true_termination_loss": termination_logs["true_loss"],
+        "false_termination_loss": termination_logs["false_loss"],
+        "loss": loss,
+    }
+    if reconstruction_weight > 0:
+        logs["reconstruction_loss"] = reconstruction_loss
+
+    return loss, logs

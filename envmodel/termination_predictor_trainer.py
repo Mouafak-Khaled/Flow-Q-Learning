@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Callable, Dict, Tuple
+from typing import Callable, Dict, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -8,7 +8,6 @@ from flax.training import train_state
 from tqdm import trange
 from wandb.sdk.wandb_run import Run
 
-from envmodel.baseline import StatePredictor
 from envmodel.config import TrainerConfig
 from envmodel.termination_predictor import TerminationPredictor
 from utils.data_loader import DataLoader
@@ -19,19 +18,17 @@ LossFn = Callable[
 ]
 
 
-class Trainer:
+class TerminationPredictorTrainer:
     def __init__(
         self,
-        state_predictor: StatePredictor,
-        termination_predictor: TerminationPredictor,
+        model: TerminationPredictor,
         train_loader: DataLoader,
         val_loader: DataLoader,
         loss_fn: LossFn,
         config: TrainerConfig,
         logger: Run | None = None,
     ):
-        self.state_predictor = state_predictor
-        self.termination_predictor = termination_predictor
+        self.model = model
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.loss_fn = loss_fn
@@ -41,14 +38,7 @@ class Trainer:
         self.rng = jax.random.PRNGKey(self.config.seed)
 
         sample_batch = self.train_loader.sample(self.config.batch_size)
-        self.params = {
-            "state_predictor": self.state_predictor.init(
-                self.rng, **sample_batch, key=self.rng
-            ),
-            "termination_predictor": self.termination_predictor.init(
-                self.rng, **sample_batch, key=self.rng
-            ),
-        }
+        self.params = self.model.init(self.rng, sample_batch["observations"])
 
         self.schedule = optax.cosine_decay_schedule(
             init_value=self.config.init_learning_rate,
@@ -57,27 +47,7 @@ class Trainer:
         self.optimizer = optax.adam(self.schedule)
 
         self.state = train_state.TrainState.create(
-            apply_fn=self.apply, params=self.params, tx=self.optimizer
-        )
-
-    def apply(
-        self, params: Dict[str, Any], batch: Dict[str, jnp.ndarray], key: jax.Array
-    ) -> jnp.ndarray:
-        predicted_next_observation = self.state_predictor.apply(
-            params["state_predictor"], **batch, key=key
-        )
-        predicted_termination_ground_truth_based = self.termination_predictor.apply(
-            params["termination_predictor"], **batch, key=key
-        )
-        kwargs = {**batch}
-        kwargs["next_observations"] = predicted_next_observation
-        predicted_termination_prediction_based = self.termination_predictor.apply(
-            params["termination_predictor"], **kwargs, key=key
-        )
-        return (
-            predicted_next_observation,
-            predicted_termination_ground_truth_based,
-            predicted_termination_prediction_based,
+            apply_fn=self.model.apply, params=self.params, tx=self.optimizer
         )
 
     @partial(jax.jit, static_argnums=0)
@@ -85,57 +55,45 @@ class Trainer:
         self,
         state: train_state.TrainState,
         batch: Dict[str, jnp.ndarray],
-        rng: jax.Array,
     ) -> Tuple[train_state.TrainState, jnp.ndarray, jax.Array]:
         """Performs a single training step (forward pass, loss calculation, gradients, update)."""
 
         def loss_fn(params):
-            rng_, key = jax.random.split(rng)
-            (
-                predicted_next_observation,
-                predicted_termination_ground_truth_based,
-                predicted_termination_prediction_based,
-            ) = self.apply(params, batch, key=key)
+            predicted_termination = self.model.apply(params, batch["next_observations"])
             loss, logs = self.loss_fn(
-                predicted_next_observation,
-                batch["next_observations"],
-                predicted_termination_ground_truth_based,
-                predicted_termination_prediction_based,
+                predicted_termination,
                 batch["rewards"] == 0,
             )
-            return loss, (logs, rng_)
+            return loss, logs
 
-        (_, (logs, rng)), grads = jax.value_and_grad(loss_fn, has_aux=True)(
-            state.params
-        )
+        (loss, logs), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
 
         new_state = state.apply_gradients(grads=grads)
-        return new_state, logs, rng
+        return new_state, {**logs, "loss": loss}
 
     @partial(jax.jit, static_argnums=0)
     def eval_step(
         self,
         state: train_state.TrainState,
         batch: Dict[str, jnp.ndarray],
-        rng: jax.Array,
-    ) -> Tuple[Dict[str, jnp.ndarray], jax.Array]:
+    ) -> Dict[str, jnp.ndarray]:
         """Evaluates the model on a batch without updating parameters."""
-        rng, key = jax.random.split(rng)
-        (
-            predicted_next_observation,
-            predicted_termination_ground_truth_based,
-            predicted_termination_prediction_based,
-        ) = self.apply(
-            state.params, batch, key=key
+        predicted_termination = self.model.apply(
+            state.params, batch["next_observations"]
         )
-        _, logs = self.loss_fn(
-            predicted_next_observation,
-            batch["next_observations"],
-            predicted_termination_ground_truth_based,
-            predicted_termination_prediction_based,
+        loss, logs = self.loss_fn(
+            predicted_termination,
             batch["rewards"] == 0,
         )
-        return logs, rng
+        predictions = predicted_termination > 0
+        targets = batch["rewards"] == 0
+        logs["accuracy"] = jnp.mean(predictions == targets)
+        logs["precision"] = jnp.sum(predictions & targets) / jnp.sum(predictions)
+        logs["recall"] = jnp.sum(predictions & targets) / jnp.sum(targets)
+        logs["f1"] = 2 * (logs["precision"] * logs["recall"]) / (
+            logs["precision"] + logs["recall"] + 1e-8
+        )
+        return {**logs, "loss": loss}
 
     def train(self) -> None:
         """Runs the main training loop."""
@@ -150,7 +108,7 @@ class Trainer:
                     val_batch = {k: jnp.array(v) for k, v in val_batch_np.items()}
 
                     # Evaluate using the current state's parameters
-                    logs, self.rng = self.eval_step(state, val_batch, self.rng)
+                    logs = self.eval_step(state, val_batch)
                     val_logs.append(logs)
 
                 for k in val_logs[0].keys():
@@ -162,7 +120,7 @@ class Trainer:
             batch_np = self.train_loader.sample(self.config.batch_size)
             batch = {k: jnp.array(v) for k, v in batch_np.items()}
 
-            state, logs, self.rng = self.train_step(state, batch, self.rng)
+            state, logs = self.train_step(state, batch)
 
             if self.logger:
                 self.logger.log(
@@ -181,7 +139,7 @@ class Trainer:
             val_batch = {k: jnp.array(v) for k, v in val_batch_np.items()}
 
             # Evaluate using the current state's parameters
-            logs, self.rng = self.eval_step(state, val_batch, self.rng)
+            logs = self.eval_step(state, val_batch)
             val_logs.append(logs)
 
         for k in val_logs[0].keys():

@@ -1,5 +1,6 @@
 from typing import Tuple
 
+import jax.numpy as jnp
 from flax import linen as nn
 
 
@@ -10,7 +11,7 @@ class TerminationPredictor(nn.Module):
     hidden_dims: Tuple[int, ...] = (128, 128)
 
     @nn.compact
-    def __call__(self, observations, **kwargs):
+    def __call__(self, observations: jnp.ndarray) -> jnp.ndarray:
         x = observations
         for hidden_dim in self.hidden_dims:
             x = nn.relu(nn.Dense(hidden_dim)(x))

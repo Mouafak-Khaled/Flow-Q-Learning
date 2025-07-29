@@ -9,8 +9,8 @@ class StatePredictor(nn.Module):
 
     @nn.compact
     def __call__(
-        self, observations: jnp.ndarray, actions: jnp.ndarray, **kwargs
-    ) -> jnp.ndarray:
+        self, observations: jnp.ndarray, actions: jnp.ndarray
+    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         raise NotImplementedError
 
 
@@ -23,7 +23,9 @@ class BaselineStatePredictor(StatePredictor):
     hidden_dims: Tuple[int, ...] = (128, 128)
 
     @nn.compact
-    def __call__(self, observations, actions, **kwargs):
+    def __call__(
+        self, observations: jnp.ndarray, actions: jnp.ndarray
+    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         x = jnp.concatenate([observations, actions], axis=-1)
 
         x = nn.LayerNorm()(x)
@@ -32,4 +34,4 @@ class BaselineStatePredictor(StatePredictor):
             x = nn.relu(nn.Dense(hidden_dim)(x))
         next_observations = nn.Dense(self.observation_dimension)(x) + observations
 
-        return next_observations
+        return next_observations, observations

@@ -175,44 +175,37 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--state_predictor",
+        "--model",
         type=str,
         default="baseline",
         help="The environment model to be used.",
     )
 
     parser.add_argument(
-        "--state_predictor.hidden_dims",
+        "--model.hidden_dims",
         type=literal_eval,
         default=(128, 256, 128),
         help="The dimension of hidden layers.",
     )
 
     parser.add_argument(
-        "--termination_predictor.hidden_dims",
-        type=literal_eval,
-        default=(32, 32),
-        help="The dimension of hidden layers.",
-    )
-
-    parser.add_argument(
-        "--state_predictor.latent_dim",
+        "--model.latent_dim",
         type=int,
         default=4,
         help="The dimension of latent representation.",
     )
 
     parser.add_argument(
-        "--termination_predictor.true_termination_weight",
+        "--true_termination_weight",
         type=float,
-        default=1000.0,
+        default=30.0,
         help="Weight for the true class in the termination loss in the env model.",
     )
 
     parser.add_argument(
         "--termination_weight",
         type=float,
-        default=100.0,
+        default=1.0,
         help="Weight for the termination loss in the env model.",
     )
 
@@ -272,17 +265,13 @@ def get_env_model_argparser() -> argparse.ArgumentParser:
 def build_env_model_config_from_args(args: argparse.Namespace) -> EnvModelTrainerConfig:
     args_dict = vars(args)
 
-    state_predictor = {}
-    termination_predictor = {}
+    model_config = {}
     trainer_kwargs = {}
 
     for k, v in args_dict.items():
-        if k.startswith("state_predictor."):
-            model_field = k[len("state_predictor.") :]
-            state_predictor[model_field] = v
-        elif k.startswith("termination_predictor."):
-            model_field = k[len("termination_predictor.") :]
-            termination_predictor[model_field] = v
+        if k.startswith("model."):
+            model_field = k[len("model.") :]
+            model_config[model_field] = v
         else:
             trainer_kwargs[k] = v
 
@@ -297,8 +286,7 @@ def build_env_model_config_from_args(args: argparse.Namespace) -> EnvModelTraine
     }
     trainer_config = EnvModelTrainerConfig(
         **filtered_trainer_kwargs,
-        state_predictor_config=state_predictor,
-        termination_predictor_config=termination_predictor,
+        model_config=model_config,
     )
 
     return trainer_config
