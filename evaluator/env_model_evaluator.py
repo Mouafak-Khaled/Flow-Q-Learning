@@ -92,8 +92,7 @@ class EnvModelEvaluator:
         plt.legend()
 
         plt.title(
-            # TODO: add the task and model names to the title
-            "Comparing Trajectories: Model vs Real Environment\n"
+            f"Comparing Trajectories: Model ({self.simulated_task.model}) vs Real Environment ({get_task_title(self.simulated_task.env_name)})\n"
             f"Success Rate: $real={100 * self.real_info['success']:.2f}\\%$, $sim={100 * self.sim_info['success']:.2f}\\%$\n"
             f"$real2sim={100 * real2sim_info.get('success', 0):.2f}\\%$"
         )

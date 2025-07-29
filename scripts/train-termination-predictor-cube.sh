@@ -1,9 +1,9 @@
 #!/bin/bash
 
-#SBATCH --job-name=TrainBaselineCube_FlowQLearning
+#SBATCH --job-name=TrainTerminationPredictorCube_FlowQLearning
 #SBATCH --partition=dllabdlc_gpu-rtx2080
 #SBATCH --mem=16GB
-#SBATCH --time=00:30:00
+#SBATCH --time=00:10:00
 #SBATCH --output=/work/dlclarge2/amriam-fql/logs/slurm-%A_%a.out
 #SBATCH --error=/work/dlclarge2/amriam-fql/logs/slurm-%A_%a.err
 

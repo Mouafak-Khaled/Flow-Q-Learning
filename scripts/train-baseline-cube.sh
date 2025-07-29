@@ -2,8 +2,8 @@
 
 #SBATCH --job-name=TrainBaselineCube_FlowQLearning
 #SBATCH --partition=dllabdlc_gpu-rtx2080
-#SBATCH --mem=16GB
-#SBATCH --time=04:30:00
+#SBATCH --mem=32GB
+#SBATCH --time=05:00:00
 #SBATCH --output=/work/dlclarge2/amriam-fql/logs/slurm-%A_%a.out
 #SBATCH --error=/work/dlclarge2/amriam-fql/logs/slurm-%A_%a.err
 
@@ -13,6 +13,9 @@ conda activate fql
 
 python train_env_model.py \
     --env_name=cube-single-play-singletask-task2-v0 --model=baseline --termination_weight=0 \
+    --save_directory=/work/dlclarge2/amriam-fql/exp/ --data_directory=/work/dlclarge2/amriam-fql/data/
+
+python evaluate_env_model.py --env_name=cube-single-play-singletask-task2-v0 --model=baseline --eval_episodes=50 \
     --save_directory=/work/dlclarge2/amriam-fql/exp/ --data_directory=/work/dlclarge2/amriam-fql/data/
 
 python evaluate_success_rate_correlation.py --env_name=cube-single-play-singletask-task2-v0 --model=baseline \
