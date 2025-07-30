@@ -91,13 +91,30 @@ class TerminationPredictorTrainer:
         )
         predictions = predicted_termination > 0
         targets = batch["rewards"] == 0
+
         logs["accuracy"] = jnp.mean(predictions == targets)
-        logs["precision"] = jnp.sum(predictions & targets) / jnp.sum(predictions)
-        logs["recall"] = jnp.sum(predictions & targets) / jnp.sum(targets)
-        logs["f1"] = (
+
+        true_positives = jnp.sum(predictions & targets)
+        predicted_positives = jnp.sum(predictions)
+        actual_positives = jnp.sum(targets)
+
+        logs["precision"] = jnp.where(
+            predicted_positives > 0,
+            true_positives / predicted_positives,
+            1.0,
+        )
+        logs["recall"] = jnp.where(
+            actual_positives > 0,
+            true_positives / actual_positives,
+            1.0,
+        )
+        logs["f1"] = jnp.where(
+            (logs["precision"] + logs["recall"]) > 0,
             2
-            * (logs["precision"] * logs["recall"])
-            / (logs["precision"] + logs["recall"] + 1e-8)
+            * logs["precision"]
+            * logs["recall"]
+            / (logs["precision"] + logs["recall"]),
+            0.0,
         )
         return {**logs, "loss": loss}
 
