@@ -117,7 +117,7 @@ for experiment_config in experiment_configs:
     )
 
     real_success, sim_success = evaluator.evaluate()
-    evaluator.close()
+    del evaluator
     del agent
     df.loc[len(df)] = [
         experiment_config.seed,
@@ -125,6 +125,9 @@ for experiment_config in experiment_configs:
         real_success,
         sim_success,
     ]
+
+real_task.close()
+simulated_task.close()
 
 x = df["real_success"]
 y = df["sim_success"]
