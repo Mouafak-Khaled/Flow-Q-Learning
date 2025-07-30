@@ -118,6 +118,7 @@ for experiment_config in experiment_configs:
 
     real_success, sim_success = evaluator.evaluate()
     evaluator.close()
+    del agent
     df.loc[len(df)] = [
         experiment_config.seed,
         experiment_config.alpha,
