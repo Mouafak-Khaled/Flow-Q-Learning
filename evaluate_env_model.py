@@ -31,7 +31,7 @@ simulated_task = OfflineTaskWithSimulatedEvaluations(
 )
 
 agent = load_agent(
-    agent_directory=config.save_directory / config.env_name / "best_run",
+    agent_directory=config.save_directory / config.env_name / "env_models",
     sample_batch=real_task.sample("train", 1),
 )
 
