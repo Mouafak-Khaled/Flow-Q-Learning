@@ -12,5 +12,5 @@ source ~/miniconda3/bin/activate
 conda activate fql
 
 python train_env_model.py \
-    --env_name=antsoccer-arena-navigate-singletask-task4-v0 --model=termination_predictor --steps=400000 \
+    --env_name=antsoccer-arena-navigate-singletask-task4-v0 --model=termination_predictor --steps=40000 \
     --save_directory=/work/dlclarge2/amriam-fql/exp/ --data_directory=/work/dlclarge2/amriam-fql/data/
