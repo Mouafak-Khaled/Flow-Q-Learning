@@ -28,7 +28,7 @@ def load_agent(
         agent_config,
     )
 
-    agent_path = agent_directory / agent_filename / agent_extension
+    agent_path = agent_directory / (agent_filename + agent_extension)
     if agent_path.exists():
         with open(agent_path, "rb") as f:
             state_dict = pickle.load(f)

@@ -45,6 +45,15 @@ parser.add_argument(
     default=50,
     help="Number of evaluation episodes.",
 )
+parser.add_argument(
+    "--eval_interval", type=int, default=100000, help="Evaluation interval."
+)
+parser.add_argument(
+    "--steps", type=int, default=1000000, help="Number of training steps."
+)
+parser.add_argument(
+    "--eval_episodes", type=int, default=50, help="Number of evaluation episodes."
+)
 
 args = parser.parse_args()
 config = build_env_model_config_from_args(args)
@@ -107,6 +116,11 @@ for experiment_config in experiment_configs:
     file_path = sorted(files, key=extract_timestamp)[-1]
     for checkpoint_idx in range(1, config.eval_episodes + 1):
         checkpoint = checkpoint_idx * config.eval_interval
+        if not (file_path / f"checkpoint_{checkpoint}.pkl").exists():
+            print(
+                f"File: '{file_path / f'checkpoint_{checkpoint}.pkl'}' was not found. Skipping"
+            )
+            continue
         agent = load_agent(
             agent_directory=file_path,
             sample_batch=real_task.sample("train", 1),
@@ -133,6 +147,8 @@ for experiment_config in experiment_configs:
 
 real_task.close()
 simulated_task.close()
+
+# df.to_csv("report/new_all_data.csv")
 
 x = df["real_success"]
 y = df["sim_success"]
