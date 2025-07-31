@@ -11,6 +11,7 @@ from wandb.sdk.wandb_run import Run
 
 from envmodel.config import TrainerConfig
 from envmodel.termination_predictor import TerminationPredictor
+from fql.utils.datasets import Dataset
 from utils.data_loader import DataLoader
 
 LossFn = Callable[
@@ -95,30 +96,11 @@ class TerminationPredictorTrainer:
         predictions = predicted_termination > 0
         targets = batch["rewards"] == 0
 
-        logs["accuracy"] = jnp.mean(predictions == targets)
+        logs["tp"] = jnp.sum(predictions & targets)
+        logs["tn"] = jnp.sum(~predictions & ~targets)
+        logs["fp"] = jnp.sum(predictions & ~targets)
+        logs["fn"] = jnp.sum(~predictions & targets)
 
-        true_positives = jnp.sum(predictions & targets)
-        predicted_positives = jnp.sum(predictions)
-        actual_positives = jnp.sum(targets)
-
-        logs["precision"] = jnp.where(
-            predicted_positives > 0,
-            true_positives / predicted_positives,
-            1.0,
-        )
-        logs["recall"] = jnp.where(
-            actual_positives > 0,
-            true_positives / actual_positives,
-            1.0,
-        )
-        logs["f1"] = jnp.where(
-            (logs["precision"] + logs["recall"]) > 0,
-            2
-            * logs["precision"]
-            * logs["recall"]
-            / (logs["precision"] + logs["recall"]),
-            0.0,
-        )
         return {**logs, "loss": loss}
 
     def train(self) -> Dict[str, float]:
@@ -130,7 +112,7 @@ class TerminationPredictorTrainer:
             if step % 100 == 0:
                 val_logs = []
                 for _ in range(self.config.val_batches):
-                    val_batch_np = self.val_loader.sample(self.config.batch_size)
+                    val_batch_np = self.val_loader.sample(256)
                     val_batch = {k: jnp.array(v) for k, v in val_batch_np.items()}
 
                     # Evaluate using the current state's parameters
@@ -138,13 +120,27 @@ class TerminationPredictorTrainer:
                     val_logs.append(logs)
 
                 for k in val_logs[0].keys():
+                    if k in ["tp", "tn", "fp", "fn"]:
+                        continue
                     avg_val_log = jnp.mean(jnp.array([log[k] for log in val_logs]))
                     if self.writer:
                         self.writer.add_scalar(
-                            f"val/{k}", scalar_value=np.array(avg_val_log), global_step=step
+                            f"val/{k}",
+                            scalar_value=np.array(avg_val_log),
+                            global_step=step,
                         )
                     if self.logger:
                         self.logger.log({f"val/{k}": avg_val_log}, step=step)
+                val_metrics = self._transform_eval_metrics(val_logs)
+                for k, v in val_metrics.items():
+                    if self.writer:
+                        self.writer.add_scalar(
+                            f"val/{k}",
+                            scalar_value=v,
+                            global_step=step,
+                        )
+                    if self.logger:
+                        self.logger.log({f"val/{k}": v}, step=step)
 
             # Sample a new random batch each step and convert to JAX arrays
             batch_np = self.train_loader.sample(self.config.batch_size)
@@ -170,22 +166,96 @@ class TerminationPredictorTrainer:
 
         val_logs = []
         for _ in range(self.config.val_batches):
-            val_batch_np = self.val_loader.sample(self.config.batch_size)
+            val_batch_np = self.val_loader.sample(256)
             val_batch = {k: jnp.array(v) for k, v in val_batch_np.items()}
 
             # Evaluate using the current state's parameters
             logs = self.eval_step(state, val_batch)
             val_logs.append(logs)
 
-        val_metrics = {}
         for k in val_logs[0].keys():
+            if k in ["tp", "tn", "fp", "fn"]:
+                continue
             avg_val_log = jnp.mean(jnp.array([log[k] for log in val_logs]))
-            val_metrics[k] = np.array(avg_val_log)
             if self.writer:
                 self.writer.add_scalar(
                     f"val/{k}", scalar_value=np.array(avg_val_log), global_step=step
                 )
             if self.logger:
                 self.logger.log({f"val/{k}": avg_val_log}, step=step)
+        val_metrics = self._transform_eval_metrics(val_logs)
 
         return val_metrics
+
+    def validate(
+        self, train_dataset: Dataset, val_dataset: Dataset
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """Runs validation without training."""
+        state = self.state
+
+        # iterate over the training dataset
+        train_logs = []
+        for i in range(len(train_dataset["observations"]) // 256):
+            # Sample a batch from the training dataset
+            if i == len(train_dataset["observations"]) // 256 - 1:
+                train_batch_np = train_dataset.get_subset(
+                    np.arange(i * 256, len(train_dataset["observations"]))
+                )
+            else:
+                train_batch_np = train_dataset.get_subset(
+                    np.arange(i * 256, (i + 1) * 256)
+                )
+            train_batch = {k: jnp.array(v) for k, v in train_batch_np.items()}
+
+            logs = self.eval_step(state, train_batch)
+            train_logs.append(logs)
+
+        train_metrics = self._transform_eval_metrics(train_logs)
+
+        val_logs = []
+        for i in range(len(val_dataset["observations"]) // 256):
+            # Sample a batch from the validation dataset
+            if i == len(val_dataset["observations"]) // 256 - 1:
+                val_batch_np = val_dataset.get_subset(
+                    np.arange(i * 256, len(val_dataset["observations"]))
+                )
+            else:
+                val_batch_np = val_dataset.get_subset(np.arange(i * 256, (i + 1) * 256))
+            val_batch = {k: jnp.array(v) for k, v in val_batch_np.items()}
+
+            logs = self.eval_step(state, val_batch)
+            val_logs.append(logs)
+        val_metrics = self._transform_eval_metrics(val_logs)
+
+        return train_metrics, val_metrics
+
+
+    def _transform_eval_metrics(self, logs: list[Dict[str, jnp.ndarray]]) -> Dict[str, np.ndarray]:
+        total_tp = jnp.sum(jnp.array([log["tp"] for log in logs]))
+        total_tn = jnp.sum(jnp.array([log["tn"] for log in logs]))
+        total_fp = jnp.sum(jnp.array([log["fp"] for log in logs]))
+        total_fn = jnp.sum(jnp.array([log["fn"] for log in logs]))
+
+        accuracy = (total_tp + total_tn) / (total_tp + total_tn + total_fp + total_fn)
+        precision = jnp.where(
+            total_tp + total_fp > 0,
+            total_tp / (total_tp + total_fp),
+            1.0,
+        )
+        recall = jnp.where(
+            total_tp + total_fn > 0,
+            total_tp / (total_tp + total_fn),
+            1.0,
+        )
+        f1 = jnp.where(
+            (precision + recall) > 0,
+            2 * precision * recall / (precision + recall),
+            0.0,
+        )
+
+        return {
+            "accuracy": np.array(accuracy),
+            "precision": np.array(precision),
+            "recall": np.array(recall),
+            "f1": np.array(f1)
+        }

@@ -14,3 +14,9 @@ conda activate fql
 python train_env_model.py \
     --env_name=antsoccer-arena-navigate-singletask-task4-v0 --model=termination_predictor --steps=40000 \
     --save_directory=/work/dlclarge2/amriam-fql/exp/ --data_directory=/work/dlclarge2/amriam-fql/data/
+
+
+python train_env_model.py \
+    --env_name=antsoccer-arena-navigate-singletask-task4-v0 --model=termination_predictor --steps=10000 \
+    --batch_size=33 --hidden_dims="(49, 174, 363, 79)" --initial_learning_rate=0.000026152 \
+    --save_directory=/work/dlclarge2/amriam-fql/exp/ --data_directory=/work/dlclarge2/amriam-fql/data/
