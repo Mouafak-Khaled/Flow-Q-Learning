@@ -15,7 +15,7 @@ from task.offline_task_real import OfflineTaskWithRealEvaluations
 from task.offline_task_simulated import OfflineTaskWithSimulatedEvaluations
 from trainer.config import ExperimentConfig
 from utils.agent import load_agent
-from utils.tasks import get_task_title, get_task_filename
+from utils.tasks import get_task_filename, get_task_title
 
 # Usage:
 # python evaluate_success_rate_correlation.py --env_name=antsoccer-arena-navigate-singletask-task4-v0 --model=baseline \
@@ -78,7 +78,9 @@ simulated_task = OfflineTaskWithSimulatedEvaluations(
     num_evaluation_envs=args.eval_episodes,
 )
 
-df = pd.DataFrame(columns=["seed", "alpha", "real_success", "sim_success"])
+df = pd.DataFrame(
+    columns=["seed", "alpha", "real_success", "sim_success", "checkpoint"]
+)
 
 
 def extract_timestamp(file_path):
@@ -103,28 +105,31 @@ for experiment_config in experiment_configs:
         )
     )
     file_path = sorted(files, key=extract_timestamp)[-1]
+    for checkpoint_idx in range(1, config.eval_episodes + 1):
+        checkpoint = checkpoint_idx * config.eval_interval
+        agent = load_agent(
+            agent_directory=file_path,
+            sample_batch=real_task.sample("train", 1),
+            agent_filename=f"checkpoint_{checkpoint}",
+        )
 
-    agent = load_agent(
-        agent_directory=file_path,
-        sample_batch=real_task.sample("train", 1),
-    )
+        evaluator = EnvModelEvaluator(
+            real_task=real_task,
+            simulated_task=simulated_task,
+            agent=agent,
+            seed=config.seed,
+        )
 
-    evaluator = EnvModelEvaluator(
-        real_task=real_task,
-        simulated_task=simulated_task,
-        agent=agent,
-        seed=config.seed,
-    )
-
-    real_success, sim_success = evaluator.evaluate()
-    del evaluator
-    del agent
-    df.loc[len(df)] = [
-        experiment_config.seed,
-        experiment_config.alpha,
-        real_success,
-        sim_success,
-    ]
+        real_success, sim_success = evaluator.evaluate()
+        del evaluator
+        del agent
+        df.loc[len(df)] = [
+            experiment_config.seed,
+            experiment_config.alpha,
+            real_success,
+            sim_success,
+            checkpoint,
+        ]
 
 real_task.close()
 simulated_task.close()
@@ -137,7 +142,17 @@ rho, rho_pval = spearmanr(x, y)
 tau, tau_pval = kendalltau(x, y)
 
 sns.set_theme(style="darkgrid")
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(12, 8))
+norm = plt.Normalize(df["checkpoint"].min(), df["checkpoint"].max())
+sc = plt.scatter(
+    df["real_success"],
+    df["sim_success"],
+    c=df["checkpoint"],
+    cmap="viridis",
+    norm=norm,
+    alpha=0.7,
+)
+plt.colorbar(sc, label="Checkpoint Step")
 plt.scatter(df["real_success"], df["sim_success"], alpha=0.6)
 plt.xlabel("Real Success Rate (%)")
 plt.ylabel("Simulated Success Rate (%)")
@@ -162,7 +177,7 @@ norm = mcolors.LogNorm(
     vmin=grouped_df["alpha"].replace(0, 1e-3).min(), vmax=grouped_df["alpha"].max()
 )
 sns.set_theme(style="darkgrid")
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(12, 8))
 sc = plt.scatter(
     grouped_df["real_success"],
     grouped_df["sim_success"],
@@ -184,6 +199,62 @@ plt.xticks(range(-10, 110, 20))
 plt.yticks(range(-10, 110, 20))
 plt.savefig(
     f"report/success_rate_correlation_grouped_by_alpha_{config.model}_{get_task_filename(config.env_name)}.png",
+    dpi=300,
+)
+plt.close()
+
+
+gdf = (
+    df.groupby(["alpha", "checkpoint"])[["real_success", "sim_success"]]
+    .mean()
+    .reset_index()
+)
+sns.set_theme(style="darkgrid")
+plt.figure(figsize=(12, 8))
+for alpha in sorted(gdf["alpha"].unique()):
+    subset = gdf[gdf["alpha"] == alpha]
+    plt.plot(
+        subset["checkpoint"],
+        subset["real_success"],
+        label=rf"$\alpha$={alpha:.1f} Real",
+        linestyle="--",
+    )
+    plt.plot(
+        subset["checkpoint"],
+        subset["sim_success"],
+        label=rf"$\alpha$={alpha:.1f} Sim",
+        linestyle="-",
+    )
+plt.xlabel("Checkpoint")
+plt.ylabel("Success Rate")
+plt.legend(ncol=2, fontsize=8)
+plt.title(r"Success Rate vs Training Step for Each $\alpha$")
+plt.tight_layout()
+plt.savefig(
+    f"report/success_rate_vs_training_step_correlation_grouped_by_alpha_{config.model}_{get_task_filename(config.env_name)}.png",
+    dpi=300,
+)
+plt.close()
+
+
+pivot_real = df.pivot_table(values="real_success", index="alpha", columns="checkpoint")
+pivot_sim = df.pivot_table(values="sim_success", index="alpha", columns="checkpoint")
+
+fig, axes = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
+sns.set_theme(style="darkgrid")
+sns.heatmap(pivot_real, ax=axes[0], cmap="YlGnBu", annot=True, fmt=".1f")
+axes[0].set_title("Real Success Rate")
+axes[0].set_xlabel("Checkpoint")
+axes[0].set_ylabel("Alpha")
+
+sns.heatmap(pivot_sim, ax=axes[1], cmap="YlOrRd", annot=True, fmt=".1f")
+axes[1].set_title("Simulated Success Rate")
+axes[1].set_xlabel("Checkpoint")
+
+fig.suptitle(r"Heatmap of Success Rates by $\alpha$ and Checkpoint")
+plt.tight_layout()
+plt.savefig(
+    f"report/heatmap_success_rate_by_alpha_and_checkpoint_{config.model}_{get_task_filename(config.env_name)}.png",
     dpi=300,
 )
 plt.close()

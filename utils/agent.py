@@ -6,7 +6,12 @@ import yaml
 from fql.agents.fql import FQLAgent
 
 
-def load_agent(agent_directory, sample_batch):
+def load_agent(
+    agent_directory,
+    sample_batch,
+    agent_filename: str = "params",
+    agent_extension: str = ".pkl",
+):
     config_path = agent_directory / "config.yaml"
     if config_path.exists():
         with open(config_path, "r") as f:
@@ -23,7 +28,7 @@ def load_agent(agent_directory, sample_batch):
         agent_config,
     )
 
-    agent_path = agent_directory / "params.pkl"
+    agent_path = agent_directory / agent_filename / agent_extension
     if agent_path.exists():
         with open(agent_path, "rb") as f:
             state_dict = pickle.load(f)
