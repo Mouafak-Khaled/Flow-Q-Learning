@@ -125,15 +125,17 @@ class Experiment:
 
         return eval_info["success"]
 
-    def save_agent(self):
+    def save_agent(self, checkpoint: bool = False):
         """
         Save the agent's state to a file.
         """
+        filename = f"checkpoint_{self.current_step}.pkl" if checkpoint else "params.pkl"
+
         save_dict = dict(
             agent=flax.serialization.to_state_dict(self.agent),
         )
         save_path = (
-            self.save_directory / self.env_name / self.experiment_name / "params.pkl"
+            self.save_directory / self.env_name / self.experiment_name / filename
         )
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)

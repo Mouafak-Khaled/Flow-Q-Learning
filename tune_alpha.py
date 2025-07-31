@@ -61,8 +61,7 @@ if args.single_experiment:
     done = False
     while not done:
         done = experiment.train(config.eval_interval)
-        experiment.evaluate()
-    experiment.save_agent()
+        experiment.save_agent(checkpoint=True)
     experiment.stop()
 else:
     experiment_configs = [
