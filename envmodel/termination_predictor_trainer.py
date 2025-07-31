@@ -1,8 +1,9 @@
 from functools import partial
-from typing import Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 import optax
 from flax.training import train_state
 from tqdm import trange
@@ -26,6 +27,7 @@ class TerminationPredictorTrainer:
         val_loader: DataLoader,
         loss_fn: LossFn,
         config: TrainerConfig,
+        writer: Any | None = None,
         logger: Run | None = None,
     ):
         self.model = model
@@ -33,6 +35,7 @@ class TerminationPredictorTrainer:
         self.val_loader = val_loader
         self.loss_fn = loss_fn
         self.config = config
+        self.writer = writer
         self.logger = logger
 
         self.rng = jax.random.PRNGKey(self.config.seed)
@@ -118,7 +121,7 @@ class TerminationPredictorTrainer:
         )
         return {**logs, "loss": loss}
 
-    def train(self) -> None:
+    def train(self) -> Dict[str, float]:
         """Runs the main training loop."""
 
         state = self.state
@@ -136,6 +139,10 @@ class TerminationPredictorTrainer:
 
                 for k in val_logs[0].keys():
                     avg_val_log = jnp.mean(jnp.array([log[k] for log in val_logs]))
+                    if self.writer:
+                        self.writer.add_scalar(
+                            f"val/{k}", scalar_value=np.array(avg_val_log), global_step=step
+                        )
                     if self.logger:
                         self.logger.log({f"val/{k}": avg_val_log}, step=step)
 
@@ -145,6 +152,11 @@ class TerminationPredictorTrainer:
 
             state, logs = self.train_step(state, batch)
 
+            if self.writer:
+                for k, v in logs.items():
+                    self.writer.add_scalar(
+                        f"train/{k}", scalar_value=np.array(v), global_step=step
+                    )
             if self.logger:
                 self.logger.log(
                     {
@@ -165,7 +177,15 @@ class TerminationPredictorTrainer:
             logs = self.eval_step(state, val_batch)
             val_logs.append(logs)
 
+        val_metrics = {}
         for k in val_logs[0].keys():
             avg_val_log = jnp.mean(jnp.array([log[k] for log in val_logs]))
+            val_metrics[k] = np.array(avg_val_log)
+            if self.writer:
+                self.writer.add_scalar(
+                    f"val/{k}", scalar_value=np.array(avg_val_log), global_step=step
+                )
             if self.logger:
                 self.logger.log({f"val/{k}": avg_val_log}, step=step)
+
+        return val_metrics
