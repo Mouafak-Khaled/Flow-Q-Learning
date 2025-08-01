@@ -5,7 +5,7 @@ parser = ArgumentParser(description="Train an environment model for offline RL t
 parser.add_argument(
     "--env_name",
     type=str,
-    default="antsoccer-arena-navigate-singletask-task4-v0",
+    default="cube-single-play-singletask-task2-v0",
     help="Name of the environment to train the model on.",
 )
 parser.add_argument(

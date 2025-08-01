@@ -1,0 +1,11 @@
+These metrics are based on the entire training and validation datasets, not just few batches.
+
+Training accuracy: 0.9984
+Training precision: 0.5759
+Training recall: 0.9896
+Training f1: 0.7281
+
+Validation accuracy: 0.9979
+Validation precision: 0.3857
+Validation recall: 0.5478
+Validation f1: 0.4526

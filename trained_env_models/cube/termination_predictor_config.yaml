@@ -1,0 +1,5 @@
+hidden_dims: !!python/tuple
+- 71
+- 402
+- 166
+- 44
