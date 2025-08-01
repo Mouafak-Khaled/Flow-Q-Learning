@@ -1,0 +1,5 @@
+hidden_dims: !!python/tuple
+- 128
+- 512
+- 512
+- 128

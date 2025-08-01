@@ -1,0 +1,10 @@
+Training false_termination_loss: 0.0003
+Training loss: 0.0184
+Training next_observation_loss: 0.0365
+Training termination_loss: 0.0003
+Training true_termination_loss: 0.0002
+Validation false_termination_loss: 0.0018
+Validation loss: 0.0203
+Validation next_observation_loss: 0.0388
+Validation termination_loss: 0.0018
+Validation true_termination_loss: 0.0017
