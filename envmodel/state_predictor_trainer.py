@@ -3,6 +3,7 @@ from typing import Any, Callable, Dict, Tuple
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 import optax
 from flax.training import train_state
 from tqdm import trange
@@ -10,6 +11,7 @@ from wandb.sdk.wandb_run import Run
 
 from envmodel.baseline import StatePredictor
 from envmodel.config import TrainerConfig
+from fql.utils.datasets import Dataset
 from utils.data_loader import DataLoader
 from utils.envmodel import load_model
 
@@ -27,6 +29,7 @@ class StatePredictorTrainer:
         val_loader: DataLoader,
         loss_fn: LossFn,
         config: TrainerConfig,
+        writer: Any | None = None,
         logger: Run | None = None,
     ):
         self.model = model
@@ -34,6 +37,7 @@ class StatePredictorTrainer:
         self.val_loader = val_loader
         self.loss_fn = loss_fn
         self.config = config
+        self.writer = writer
         self.logger = logger
 
         self.rng = jax.random.PRNGKey(self.config.seed)
@@ -134,7 +138,13 @@ class StatePredictorTrainer:
                     val_logs.append(logs)
 
                 for k in val_logs[0].keys():
-                    avg_val_log = jnp.mean(jnp.array([log[k] for log in val_logs]))
+                    avg_val_log = np.array(
+                        jnp.mean(jnp.array([log[k] for log in val_logs]))
+                    )
+                    if self.writer:
+                        self.writer.add_scalar(
+                            f"val/{k}", scalar_value=avg_val_log, global_step=step
+                        )
                     if self.logger:
                         self.logger.log({f"val/{k}": avg_val_log}, step=step)
 
@@ -144,11 +154,21 @@ class StatePredictorTrainer:
 
             state, logs = self.train_step(state, batch)
 
+            if self.writer:
+                self.writer.add_scalar(
+                    "train/learning_rate",
+                    scalar_value=np.array(self.schedule(step)),
+                    global_step=step,
+                )
+                for k, v in logs.items():
+                    self.writer.add_scalar(
+                        f"train/{k}", scalar_value=np.array(v), global_step=step
+                    )
             if self.logger:
                 self.logger.log(
                     {
-                        "train/learning_rate": self.schedule(step),
-                        **{f"train/{k}": v for k, v in logs.items()},
+                        "train/learning_rate": np.array(self.schedule(step)),
+                        **{f"train/{k}": np.array(v) for k, v in logs.items()},
                     },
                     step=step,
                 )
@@ -164,7 +184,63 @@ class StatePredictorTrainer:
             logs = self.eval_step(state, val_batch)
             val_logs.append(logs)
 
+        val_metrics = {}
         for k in val_logs[0].keys():
-            avg_val_log = jnp.mean(jnp.array([log[k] for log in val_logs]))
+            val_metrics[k] = np.array(jnp.mean(jnp.array([log[k] for log in val_logs])))
+            if self.writer:
+                self.writer.add_scalar(
+                    f"val/{k}", scalar_value=val_metrics[k], global_step=step
+                )
             if self.logger:
-                self.logger.log({f"val/{k}": avg_val_log}, step=step)
+                self.logger.log({f"val/{k}": val_metrics[k]}, step=step)
+
+        return val_metrics
+
+    def validate(
+        self, train_dataset: Dataset, val_dataset: Dataset
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """Runs validation without training."""
+        state = self.state
+
+        # iterate over the training dataset
+        train_logs = []
+        for i in range(len(train_dataset["observations"]) // 256):
+            # Sample a batch from the training dataset
+            if i == len(train_dataset["observations"]) // 256 - 1:
+                train_batch_np = train_dataset.get_subset(
+                    np.arange(i * 256, len(train_dataset["observations"]))
+                )
+            else:
+                train_batch_np = train_dataset.get_subset(
+                    np.arange(i * 256, (i + 1) * 256)
+                )
+            train_batch = {k: jnp.array(v) for k, v in train_batch_np.items()}
+
+            logs = self.eval_step(state, train_batch)
+            train_logs.append(logs)
+
+        train_metrics = {}
+        for k in train_logs[0].keys():
+            train_metrics[k] = np.array(
+                jnp.mean(jnp.array([log[k] for log in train_logs]))
+            )
+
+        val_logs = []
+        for i in range(len(val_dataset["observations"]) // 256):
+            # Sample a batch from the validation dataset
+            if i == len(val_dataset["observations"]) // 256 - 1:
+                val_batch_np = val_dataset.get_subset(
+                    np.arange(i * 256, len(val_dataset["observations"]))
+                )
+            else:
+                val_batch_np = val_dataset.get_subset(np.arange(i * 256, (i + 1) * 256))
+            val_batch = {k: jnp.array(v) for k, v in val_batch_np.items()}
+
+            logs = self.eval_step(state, val_batch)
+            val_logs.append(logs)
+
+        val_metrics = {}
+        for k in val_logs[0].keys():
+            val_metrics[k] = np.array(jnp.mean(jnp.array([log[k] for log in val_logs])))
+
+        return train_metrics, val_metrics

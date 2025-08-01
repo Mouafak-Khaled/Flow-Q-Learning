@@ -8,7 +8,6 @@ class TrainerConfig:
     steps: int = 2000
     env_name: str = "cube-single-play-singletask-task2-v0"
     model: str = "baseline"
-    true_termination_weight: float = 30.0
     termination_weight: float = 1.0
     reconstruction_weight: float = 1.0
     model_config: dict[str, any] = field(default_factory=lambda: {})

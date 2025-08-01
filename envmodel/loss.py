@@ -20,8 +20,8 @@ def weighted_binary_cross_entropy(
     loss = jnp.mean((true_weight * true_loss + false_loss) / (true_weight + 1))
 
     logs = {
-        "true_loss": jnp.sum(true_loss) / jnp.sum(targets == 1),
-        "false_loss": jnp.sum(false_loss) / jnp.sum(targets == 0),
+        "true_loss": jnp.sum(true_loss) / (jnp.sum(targets == 1) + 1e-8),
+        "false_loss": jnp.sum(false_loss) / (jnp.sum(targets == 0) + 1e-8),
     }
 
     return loss, logs
@@ -69,7 +69,6 @@ def state_prediction_loss(
     terminations,
     reconstructed_observations: jnp.ndarray,
     observations: jnp.ndarray,
-    true_termination_weight: float,
     termination_weight: float,
     reconstruction_weight: float,
 ):
@@ -77,11 +76,7 @@ def state_prediction_loss(
         predicted_next_observations, next_observations
     )
     termination_loss, termination_logs = (
-        weighted_binary_cross_entropy(
-            predicted_termination,
-            terminations,
-            true_termination_weight,
-        )
+        focal_loss(predicted_termination, terminations)
         if termination_weight > 0
         else (0.0, {})
     )

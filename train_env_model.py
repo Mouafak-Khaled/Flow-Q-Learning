@@ -12,7 +12,7 @@ parser.add_argument(
     "--model",
     type=str,
     choices=["baseline", "multistep", "termination_predictor"],
-    default="termination_predictor",
+    default="baseline",
     help="Type of model to train.",
 )
 parser.add_argument(
@@ -28,6 +28,13 @@ if args.model == "termination_predictor":
     from envmodel_hpo.train_termination_predictor import train_termination_predictor
 
     train_termination_predictor(
+        env_name=args.env_name,
+        save_directory=Path(args.save_directory),
+    )
+elif args.model == "baseline":
+    from envmodel_hpo.train_baseline import train_baseline
+
+    train_baseline(
         env_name=args.env_name,
         save_directory=Path(args.save_directory),
     )

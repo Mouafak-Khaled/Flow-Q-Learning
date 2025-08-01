@@ -9,11 +9,11 @@ import torch
 import yaml
 
 from envmodel.config import TrainerConfig
-from envmodel.loss import weighted_binary_cross_entropy
-from envmodel.termination_predictor import TerminationPredictor
-from envmodel.termination_predictor_trainer import TerminationPredictorTrainer
+from envmodel.loss import state_prediction_loss
+from envmodel.baseline import BaselineStatePredictor
+from envmodel.state_predictor_trainer import StatePredictorTrainer
 from fql.utils.datasets import Dataset
-from utils.data_loader import BalancedStepLoader, StepLoader
+from utils.data_loader import StepLoader
 
 
 def training_pipeline(
@@ -30,7 +30,7 @@ def training_pipeline(
     start = time.time()
     if final_run:
         writer = torch.utils.tensorboard.SummaryWriter(
-            log_dir=save_directory / env_name / "env_models" / "termination_predictor"
+            log_dir=save_directory / env_name / "env_models" / "baseline"
         )
     else:
         writer = neps.tblogger.ConfigWriter(write_summary_incumbent=True)
@@ -41,32 +41,40 @@ def training_pipeline(
 
     config = TrainerConfig(
         env_name=env_name,
-        model="termination_predictor",
+        model="baseline",
         model_config={"hidden_dims": hidden_dims},
         init_learning_rate=initial_learning_rate,
         batch_size=batch_size,
-        steps=10000,
+        steps=20000,
     )
 
     _, train_dataset, val_dataset = ogbench.make_env_and_datasets(
         config.env_name, config.data_directory
     )
 
-    train_dataloader = BalancedStepLoader(train_dataset)
+    train_dataloader = StepLoader(train_dataset)
     val_dataloader = StepLoader(val_dataset)
 
+    # Sample once to get shapes
     sample_batch = train_dataloader.sample(config.batch_size)
 
-    model = TerminationPredictor(
+    model = BaselineStatePredictor(
         observation_dimension=sample_batch["observations"].shape[-1],
-        hidden_dims=hidden_dims,
+        action_dimension=sample_batch["actions"].shape[-1],
+        hidden_dims=config.model_config["hidden_dims"],
     )
 
-    trainer = TerminationPredictorTrainer(
+    loss_fn = partial(
+        state_prediction_loss,
+        termination_weight=config.termination_weight,
+        reconstruction_weight=0.0,
+    )
+
+    trainer = StatePredictorTrainer(
         model=model,
         train_loader=train_dataloader,
         val_loader=val_dataloader,
-        loss_fn=weighted_binary_cross_entropy,
+        loss_fn=loss_fn,
         config=config,
         writer=writer,
     )
@@ -92,13 +100,13 @@ def training_pipeline(
         return trainer, config
     else:
         return {
-            "objective_to_minimize": -val_metrics["f1"],
+            "objective_to_minimize": float(val_metrics["next_observation_loss"]),
             "info_dict": val_metrics,
             "cost": time.time() - start,
         }
 
 
-def train_termination_predictor(
+def train_baseline(
     env_name: str = "cube-single-play-singletask-task2-v0",
     save_directory: Path = Path("exp"),
 ):
@@ -122,18 +130,12 @@ def train_termination_predictor(
             "name": "bayesian_optimization",
             "device": "cpu",
         },
-        root_directory=save_directory
-        / env_name
-        / "env_models"
-        / "termination_predictor_neps",
+        root_directory=save_directory / env_name / "env_models" / "baseline_neps",
         post_run_summary=True,
     )
 
     _, summary = neps.status(
-        root_directory=save_directory
-        / env_name
-        / "env_models"
-        / "termination_predictor_neps"
+        root_directory=save_directory / env_name / "env_models" / "baseline_neps"
     )
 
     trainer, config = training_pipeline(
