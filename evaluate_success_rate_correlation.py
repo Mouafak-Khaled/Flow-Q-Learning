@@ -36,22 +36,26 @@ simulated_task = OfflineTaskWithSimulatedEvaluations(
 
 
 def evaluate(row):
+    step = int(row["step"])
+    seed = int(row["seed"])
+    alpha = row["alpha"]
+
     exp_path = (
         config.save_directory.parent / "exp-checkpointing" / config.env_name
-    ).glob(f"seed_{int(row['seed'])}_alpha_{row['alpha']}_*")
+    ).glob(f"seed_{seed}_alpha_{alpha}_*")
 
     exp_path = next(exp_path, None)
 
     if exp_path is None:
-        print(f"No experiment found for seed {row['seed']} and alpha {row['alpha']}.")
+        print(f"No experiment found for seed {seed} and alpha {alpha}.")
         return None
 
-    print(f"Loading experiment from {exp_path}/checkpoint_{row['checkpoint']}.pkl")
+    print(f"Loading experiment from {exp_path}/checkpoint_{step}.pkl")
 
     agent = load_agent(
         agent_directory=exp_path,
         sample_batch=simulated_task.sample("train", 1),
-        agent_filename=f"checkpoint_{row['checkpoint']}",
+        agent_filename=f"checkpoint_{step}",
         agent_extension=".pkl",
     )
     info, _ = evaluate_agent(agent=agent, env=simulated_task)
