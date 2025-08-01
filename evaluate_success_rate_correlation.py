@@ -38,7 +38,7 @@ simulated_task = OfflineTaskWithSimulatedEvaluations(
 def evaluate(row):
     exp_path = (
         config.save_directory.parent / "exp-checkpointing" / config.env_name
-    ).glob(f"seed_{row['seed']}_alpha_{row['alpha']}_*")
+    ).glob(f"seed_{int(row['seed'])}_alpha_{row['alpha']}_*")
 
     exp_path = next(exp_path, None)
 
