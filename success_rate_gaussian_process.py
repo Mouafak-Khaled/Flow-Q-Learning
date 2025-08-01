@@ -20,6 +20,7 @@ class SuccessRateGaussianProcess:
         self.real_success_rates = real_success_rates
         self.gp_data = self.real_success_rates.loc[simulated_success_rates.index]
         self.gp_data["simulated_success"] = simulated_success_rates
+        self.gp_data = self.gp_data.dropna()
         self._fit_gp()
         self.frames = []
         self.current_idx = None
@@ -42,11 +43,12 @@ class SuccessRateGaussianProcess:
 
         return self.gp_data.loc[self.current_idx]
 
-    def tell(self, sim_success):
+    def tell(self, sim_success: float) -> None:
         assert self.current_idx is not None
-        self.gp_data.loc[self.current_idx, "simulated_success"] = sim_success
+        if sim_success is not None:
+            self.gp_data.loc[self.current_idx, "simulated_success"] = sim_success
+            self._fit_gp()
         self.current_idx = None
-        self._fit_gp()
 
     def get_data(self):
         X = self.real_success_rates[["alpha", "step"]].copy()

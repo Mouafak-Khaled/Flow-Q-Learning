@@ -1,3 +1,4 @@
+import logging
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -14,6 +15,8 @@ from utils.tasks import get_task_filename, get_task_title
 # python evaluate_success_rate_correlation.py --env_name=antsoccer-arena-navigate-singletask-task4-v0 --model=baseline \
 #        --save_directory=/work/dlclarge2/amriam-fql/exp/ --data_directory=/work/dlclarge2/amriam-fql/data/ \
 #        --seed=42 --eval_episodes=50
+
+logger = logging.getLogger(__name__)
 
 parser = get_env_model_argparser()
 parser.add_argument(
@@ -38,7 +41,14 @@ simulated_task = OfflineTaskWithSimulatedEvaluations(
 def evaluate(row):
     exp_path = (
         config.save_directory.parent / "exp-checkpointing" / config.env_name
-    ).glob(f"seed_{row['seed']}_alpha_{row['alpha']}_*")[-1]
+    ).glob(f"seed_{row['seed']}_alpha_{row['alpha']}_*")
+
+    exp_path = next(exp_path, None)
+
+    if exp_path is None:
+        logger.info(f"No experiment found for seed {row['seed']} and alpha {row['alpha']}.")
+        return None
+
     agent = load_agent(
         agent_directory=exp_path,
         sample_batch=simulated_task.sample("train", 1),
