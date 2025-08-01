@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from scipy.special import expit, logit
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF
+from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 
 
 class SuccessRateGaussianProcess:
@@ -21,9 +21,9 @@ class SuccessRateGaussianProcess:
         self.gp_data = self.real_success_rates.loc[simulated_success_rates.index]
         self.gp_data["simulated_success"] = simulated_success_rates
         self.gp_data = self.gp_data.dropna()
-        self._fit_gp()
         self.frames = []
         self.current_idx = None
+        self._fit_gp()
 
     def ask(self):
         assert self.current_idx is None
@@ -33,10 +33,18 @@ class SuccessRateGaussianProcess:
         )
         X["step"] = X["step"] / 1_000_000
 
-        _, sigma_real = self.gp_real.predict(X, return_std=True)
-        _, sigma_sim = self.gp_sim.predict(X, return_std=True)
+        y_pred_real, sigma_real = self.gp_real.predict(X, return_std=True)
+        y_pred_sim, sigma_sim = self.gp_sim.predict(X, return_std=True)
 
-        self.current_idx = X.index[np.argmax(sigma_real + sigma_sim)]
+        lower_real = expit(y_pred_real - sigma_real)
+        upper_real = expit(y_pred_real + sigma_real)
+        uncertainty_real = upper_real - lower_real
+
+        lower_sim = expit(y_pred_sim - sigma_sim)
+        upper_sim = expit(y_pred_sim + sigma_sim)
+        uncertainty_sim = upper_sim - lower_sim
+
+        self.current_idx = X.index[np.argmax(uncertainty_real + uncertainty_sim)]
         self.gp_data.loc[self.current_idx] = self.real_success_rates.loc[
             self.current_idx
         ].copy()
@@ -74,7 +82,9 @@ class SuccessRateGaussianProcess:
         y_real = logit(self.gp_data["success"].clip(eps, 1 - eps))
         y_sim = logit(self.gp_data["simulated_success"].clip(eps, 1 - eps))
 
-        kernel = RBF()
+        kernel = RBF(length_scale=1e2, length_scale_bounds=(1e-1, 1e2)) + WhiteKernel(
+            noise_level=1e-4, noise_level_bounds=(1e-10, 1)
+        )
         self.gp_real = GaussianProcessRegressor(
             kernel=kernel, n_restarts_optimizer=10, random_state=self.seed
         )

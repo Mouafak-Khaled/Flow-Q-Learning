@@ -23,8 +23,13 @@ args = parser.parse_args()
 config = build_env_model_config_from_args(args)
 
 real_success_rates = pd.read_csv(
-    f"results/real_success_rates_{get_task_filename(config.env_name)}.csv"
+    f"results/real_success_rates_{get_task_filename(config.env_name)}.csv",
+    dtype={"seed": int, "step": int, "alpha": str, "success": float},
+    index_col=0,
 )
+
+real_success_rates["alpha_str"] = real_success_rates["alpha"]
+real_success_rates["alpha"] = real_success_rates["alpha"].astype(float)
 
 simulated_task = OfflineTaskWithSimulatedEvaluations(
     config.env_name,
@@ -36,26 +41,24 @@ simulated_task = OfflineTaskWithSimulatedEvaluations(
 
 
 def evaluate(row):
-    step = int(row["step"])
-    seed = int(row["seed"])
-    alpha = row["alpha"]
-
     exp_path = (
         config.save_directory.parent / "exp-checkpointing" / config.env_name
-    ).glob(f"seed_{seed}_alpha_{alpha}_*")
+    ).glob(f"seed_{row['seed']}_alpha_{row['alpha_str']}_*")
 
     exp_path = next(exp_path, None)
 
     if exp_path is None:
-        print(f"No experiment found for seed {seed} and alpha {alpha}.")
+        print(
+            f"No experiment found for seed {row['seed']} and alpha {row['alpha_str']}."
+        )
         return None
 
-    print(f"Loading experiment from {exp_path}/checkpoint_{step}.pkl")
+    print(f"Loading experiment from {exp_path}/checkpoint_{row['step']}.pkl")
 
     agent = load_agent(
         agent_directory=exp_path,
         sample_batch=simulated_task.sample("train", 1),
-        agent_filename=f"checkpoint_{step}",
+        agent_filename=f"checkpoint_{row['step']}",
         agent_extension=".pkl",
     )
     info, _ = evaluate_agent(agent=agent, env=simulated_task)
@@ -71,7 +74,7 @@ gp = SuccessRateGaussianProcess(
     seed=config.seed,
 )
 
-for i in range(30):
+for i in range(80):
     row = gp.ask()
     gp.tell(evaluate(row))
 
@@ -89,13 +92,17 @@ r, p = pearsonr(x, y)
 rho, rho_pval = spearmanr(x, y)
 tau, tau_pval = kendalltau(x, y)
 
+sns.set_theme(style="darkgrid")
 plt.figure(figsize=(8, 6))
 sns.scatterplot(x=x, y=y)
 plt.xlabel("Success Rate on Real Environment")
 plt.ylabel("Success Rate on Simulated Environment")
 plt.title(
-    f"Success Rate Correlation between Real Environment ({get_task_title(config.env_name)}) and Simulated Environment ({config.model})\n"
+    f"Success Rate Correlation between Real Environment ({get_task_title(config.env_name)})\n"
+    f"and Simulated Environment ({config.model})\n"
     f"Pearson r={r:.2f} (p={p:.2g}), Spearman ρ={rho:.2f} (p={rho_pval:.2g}), Kendall τ={tau:.2f} (p={tau_pval:.2g})"
 )
 plt.tight_layout()
-plt.show()
+plt.savefig(
+    f"report/success_rate_correlation_{config.model}_{get_task_filename(config.env_name)}.png"
+)
