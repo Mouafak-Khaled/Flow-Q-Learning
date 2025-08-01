@@ -9,11 +9,14 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 
 
-class GaussianProcessSelector:
-    def __init__(self, real_success_rates: pd.DataFrame, simulated_success_rates:pd.Series):
+class SuccessRateGaussianProcess:
+    def __init__(
+        self, real_success_rates: pd.DataFrame, simulated_success_rates: pd.Series, seed: int = 42
+    ):
+        self.seed = seed
         self.real_success_rates = real_success_rates
         self.gp_data = self.real_success_rates.loc[simulated_success_rates.index]
-        self.gp_data['simulated_success'] = simulated_success_rates
+        self.gp_data["simulated_success"] = simulated_success_rates
         self._fit_gp()
         self.frames = []
         self.current_idx = None
@@ -30,7 +33,9 @@ class GaussianProcessSelector:
         _, sigma_sim = self.gp_sim.predict(X, return_std=True)
 
         self.current_idx = X.index[np.argmax(sigma_real + sigma_sim)]
-        self.gp_data.loc[self.current_idx] = self.real_success_rates.loc[self.current_idx].copy()
+        self.gp_data.loc[self.current_idx] = self.real_success_rates.loc[
+            self.current_idx
+        ].copy()
 
         return self.gp_data.loc[self.current_idx]
 
@@ -40,8 +45,11 @@ class GaussianProcessSelector:
         self.current_idx = None
         self._fit_gp()
 
-    def plot(self):
-        imageio.mimsave("success_rate_gp.gif", self.frames, duration=0.3)
+    def save_data(self, filename="results/success_rate_gp.csv"):
+        self.gp_data.to_csv(filename, index=True)
+
+    def plot(self, filename="report/success_rate_gp.gif"):
+        imageio.mimsave(filename, self.frames, duration=1.0)
 
     def _fit_gp(self):
         X = self.gp_data[["alpha", "step"]].copy()
@@ -55,10 +63,10 @@ class GaussianProcessSelector:
 
         kernel = RBF()
         self.gp_real = GaussianProcessRegressor(
-            kernel=kernel, n_restarts_optimizer=10, random_state=42
+            kernel=kernel, n_restarts_optimizer=10, random_state=self.seed
         )
         self.gp_sim = GaussianProcessRegressor(
-            kernel=kernel, n_restarts_optimizer=10, random_state=42
+            kernel=kernel, n_restarts_optimizer=10, random_state=self.seed
         )
         self.gp_real.fit(X, y_real)
         self.gp_sim.fit(X, y_sim)
