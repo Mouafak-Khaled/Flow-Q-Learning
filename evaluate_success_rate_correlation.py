@@ -48,11 +48,14 @@ def evaluate(row):
     if exp_path is None:
         logger.info(f"No experiment found for seed {row['seed']} and alpha {row['alpha']}.")
         return None
+    
+    logger.info(f"Loading experiment from {exp_path}/checkpoint_{row['checkpoint']}.pkl")
 
     agent = load_agent(
         agent_directory=exp_path,
         sample_batch=simulated_task.sample("train", 1),
-        agent_filename=f"checkpoint_{row['checkpoint']}.pkl",
+        agent_filename=f"checkpoint_{row['checkpoint']}",
+        agent_extension=".pkl",
     )
     info, _ = evaluate_agent(agent=agent, env=simulated_task)
     return info["success"]
