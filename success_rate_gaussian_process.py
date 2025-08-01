@@ -11,7 +11,10 @@ from sklearn.gaussian_process.kernels import RBF
 
 class SuccessRateGaussianProcess:
     def __init__(
-        self, real_success_rates: pd.DataFrame, simulated_success_rates: pd.Series, seed: int = 42
+        self,
+        real_success_rates: pd.DataFrame,
+        simulated_success_rates: pd.Series,
+        seed: int = 42,
     ):
         self.seed = seed
         self.real_success_rates = real_success_rates
@@ -45,8 +48,16 @@ class SuccessRateGaussianProcess:
         self.current_idx = None
         self._fit_gp()
 
-    def save_data(self, filename="results/success_rate_gp.csv"):
-        self.gp_data.to_csv(filename, index=True)
+    def get_data(self):
+        X = self.real_success_rates[["alpha", "step"]].copy()
+        X["alpha"] = (np.log10(X["alpha"]) - np.log10(3)) / (
+            np.log10(1000) - np.log10(3)
+        )
+        X["step"] = X["step"] / 1_000_000
+        y_pred, _ = self.gp_sim.predict(X, return_std=True)
+        data = self.real_success_rates.copy()
+        data["simulated_success"] = expit(y_pred)
+        return data
 
     def plot(self, filename="report/success_rate_gp.gif"):
         imageio.mimsave(filename, self.frames, duration=1.0)
