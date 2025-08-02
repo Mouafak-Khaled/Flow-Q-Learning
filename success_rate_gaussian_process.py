@@ -33,18 +33,13 @@ class SuccessRateGaussianProcess:
         )
         X["step"] = X["step"] / 1_000_000
 
-        y_pred_real, sigma_real = self.gp_real.predict(X, return_std=True)
-        y_pred_sim, sigma_sim = self.gp_sim.predict(X, return_std=True)
+        y_pred, sigma = self.gp.predict(X, return_std=True)
 
-        lower_real = expit(y_pred_real - sigma_real)
-        upper_real = expit(y_pred_real + sigma_real)
-        uncertainty_real = upper_real - lower_real
+        lower = expit(y_pred - sigma)
+        upper = expit(y_pred + sigma)
+        uncertainty = upper - lower
 
-        lower_sim = expit(y_pred_sim - sigma_sim)
-        upper_sim = expit(y_pred_sim + sigma_sim)
-        uncertainty_sim = upper_sim - lower_sim
-
-        self.current_idx = X.index[np.argmax(uncertainty_real + uncertainty_sim)]
+        self.current_idx = X.index[np.argmax(uncertainty)]
         self.gp_data.loc[self.current_idx] = self.real_success_rates.loc[
             self.current_idx
         ].copy()
@@ -64,7 +59,7 @@ class SuccessRateGaussianProcess:
             np.log10(1000) - np.log10(3)
         )
         X["step"] = X["step"] / 1_000_000
-        y_pred, _ = self.gp_sim.predict(X, return_std=True)
+        y_pred, _ = self.gp.predict(X, return_std=True)
         data = self.real_success_rates.copy()
         data["simulated_success"] = expit(y_pred)
         return data
@@ -79,20 +74,15 @@ class SuccessRateGaussianProcess:
         )
         X["step"] = X["step"] / 1_000_000
         eps = 1e-6
-        y_real = logit(self.gp_data["success"].clip(eps, 1 - eps))
-        y_sim = logit(self.gp_data["simulated_success"].clip(eps, 1 - eps))
+        y = logit(self.gp_data["simulated_success"].clip(eps, 1 - eps))
 
         kernel = RBF(length_scale=1e2, length_scale_bounds=(1e-1, 1e2)) + WhiteKernel(
             noise_level=1e-4, noise_level_bounds=(1e-10, 1)
         )
-        self.gp_real = GaussianProcessRegressor(
+        self.gp = GaussianProcessRegressor(
             kernel=kernel, n_restarts_optimizer=10, random_state=self.seed
         )
-        self.gp_sim = GaussianProcessRegressor(
-            kernel=kernel, n_restarts_optimizer=10, random_state=self.seed
-        )
-        self.gp_real.fit(X, y_real)
-        self.gp_sim.fit(X, y_sim)
+        self.gp.fit(X, y)
 
         self._save_frame()
 
@@ -107,130 +97,86 @@ class SuccessRateGaussianProcess:
         )
         X_pred["step"] = X_pred["step"] / 1_000_000
 
-        # Real Pred
-        y_pred_real, sigma_real = self.gp_real.predict(X_pred, return_std=True)
-        y_pred_real = y_pred_real.reshape(alpha_grid.shape)
+        y_pred, sigma = self.gp.predict(X_pred, return_std=True)
+        y_pred = y_pred.reshape(alpha_grid.shape)
 
-        lower_real = expit(y_pred_real - sigma_real.reshape(alpha_grid.shape))
-        upper_real = expit(y_pred_real + sigma_real.reshape(alpha_grid.shape))
-        y_pred_real = expit(y_pred_real)
-        uncertainty_real = upper_real - lower_real
+        lower = expit(y_pred - sigma.reshape(alpha_grid.shape))
+        upper = expit(y_pred + sigma.reshape(alpha_grid.shape))
+        y_pred = expit(y_pred)
+        uncertainty = upper - lower
 
-        # Sim Pred
-        y_pred_sim, sigma_sim = self.gp_sim.predict(X_pred, return_std=True)
-        y_pred_sim = y_pred_sim.reshape(alpha_grid.shape)
-
-        lower_sim = expit(y_pred_sim - sigma_sim.reshape(alpha_grid.shape))
-        upper_sim = expit(y_pred_sim + sigma_sim.reshape(alpha_grid.shape))
-        y_pred_sim = expit(y_pred_sim)
-        uncertainty_sim = upper_sim - lower_sim
-
-        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+        fig, axes = plt.subplots(1, 3, figsize=(16, 6))
         ticks = np.linspace(0, 1, 11)
 
-        prediction_contour = axes[0, 0].contourf(
+        heatmap = axes[0].contourf(
             10**alpha_grid,
             step_grid,
-            y_pred_real,
+            self.real_success_rates.set_index(["alpha", "step"]).reindex(
+                pd.MultiIndex.from_arrays([10**alpha_grid.ravel(), step_grid.ravel()], names=["alpha", "step"])
+            )["success"].values.reshape(alpha_grid.shape),
             levels=50,
             cmap="viridis",
             vmin=0,
             vmax=1,
         )
-        fig.colorbar(
-            prediction_contour, ax=axes[0, 0], label="Predicted Success", ticks=ticks
-        )
-        axes[0, 0].set_xlabel("alpha")
-        axes[0, 0].set_ylabel("step")
-        axes[0, 0].set_title("Predicted Success on Real Environment")
-        axes[0, 0].set_xscale("log")
-        axes[0, 0].scatter(
-            self.gp_data["alpha"],
-            self.gp_data["step"],
-            c="r",
-            marker="+",
-            label="Data",
-        )
-        axes[0, 0].legend()
-        axes[0, 0].grid(True)
+        fig.colorbar(heatmap, ax=axes[0], label="Real Success", ticks=ticks)
+        axes[0].set_xlabel("alpha")
+        axes[0].set_ylabel("step")
+        axes[0].set_title("Real Success Rate")
+        axes[0].set_xscale("log")
+        axes[0].grid(True)
 
-        uncertainty_contour = axes[0, 1].contourf(
+        prediction_contour = axes[1].contourf(
             10**alpha_grid,
             step_grid,
-            uncertainty_real,
+            y_pred,
             levels=50,
             cmap="viridis",
             vmin=0,
             vmax=1,
         )
         fig.colorbar(
-            uncertainty_contour, ax=axes[0, 1], label="Uncertainty (σ)", ticks=ticks
+            prediction_contour, ax=axes[1], label="Predicted Success", ticks=ticks
         )
-        axes[0, 1].set_xlabel("alpha")
-        axes[0, 1].set_ylabel("step")
-        axes[0, 1].set_title("Prediction Uncertainty on Real Environment")
-        axes[0, 1].set_xscale("log")
-        axes[0, 1].scatter(
+        axes[1].set_xlabel("alpha")
+        axes[1].set_ylabel("step")
+        axes[1].set_title("Predicted Success on Real Environment")
+        axes[1].set_xscale("log")
+        axes[1].scatter(
             self.gp_data["alpha"],
             self.gp_data["step"],
             c="r",
             marker="+",
             label="Data",
         )
-        axes[0, 1].legend()
-        axes[0, 1].grid(True)
+        axes[1].legend()
+        axes[1].grid(True)
 
-        prediction_contour = axes[1, 0].contourf(
+        uncertainty_contour = axes[2].contourf(
             10**alpha_grid,
             step_grid,
-            y_pred_sim,
+            uncertainty,
             levels=50,
             cmap="viridis",
             vmin=0,
             vmax=1,
         )
         fig.colorbar(
-            prediction_contour, ax=axes[1, 0], label="Predicted Success", ticks=ticks
+            uncertainty_contour, ax=axes[2], label="Uncertainty (σ)", ticks=ticks
         )
-        axes[1, 0].set_xlabel("alpha")
-        axes[1, 0].set_ylabel("step")
-        axes[1, 0].set_title("Predicted Success on Simulated Environment")
-        axes[1, 0].set_xscale("log")
-        axes[1, 0].scatter(
+        axes[2].set_xlabel("alpha")
+        axes[2].set_ylabel("step")
+        axes[2].set_title("Prediction Uncertainty on Simulated Environment")
+        axes[2].set_xscale("log")
+        axes[2].scatter(
             self.gp_data["alpha"],
             self.gp_data["step"],
             c="r",
             marker="+",
             label="Data",
         )
-        axes[1, 0].legend()
-        axes[1, 0].grid(True)
-
-        uncertainty_contour = axes[1, 1].contourf(
-            10**alpha_grid,
-            step_grid,
-            uncertainty_sim,
-            levels=50,
-            cmap="viridis",
-            vmin=0,
-            vmax=1,
-        )
-        fig.colorbar(
-            uncertainty_contour, ax=axes[1, 1], label="Uncertainty (σ)", ticks=ticks
-        )
-        axes[1, 1].set_xlabel("alpha")
-        axes[1, 1].set_ylabel("step")
-        axes[1, 1].set_title("Prediction Uncertainty on Simulated Environment")
-        axes[1, 1].set_xscale("log")
-        axes[1, 1].scatter(
-            self.gp_data["alpha"],
-            self.gp_data["step"],
-            c="r",
-            marker="+",
-            label="Data",
-        )
-        axes[1, 1].legend()
-        axes[1, 1].grid(True)
+        axes[2].legend()
+        axes[2].grid(True)
 
         plt.tight_layout()
         buf = io.BytesIO()
@@ -238,6 +184,5 @@ class SuccessRateGaussianProcess:
         plt.close()
         buf.seek(0)
 
-        # Read image from buffer and append
         image = imageio.imread(buf)
         self.frames.append(image)
