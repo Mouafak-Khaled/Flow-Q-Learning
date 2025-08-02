@@ -7,6 +7,7 @@ import pandas as pd
 from scipy.special import expit, logit
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
+from scipy.interpolate import griddata
 
 
 class SuccessRateGaussianProcess:
@@ -105,15 +106,26 @@ class SuccessRateGaussianProcess:
         y_pred = expit(y_pred)
         uncertainty = upper - lower
 
-        fig, axes = plt.subplots(1, 3, figsize=(16, 6))
+        fig, axes = plt.subplots(1, 3, figsize=(24, 6))
         ticks = np.linspace(0, 1, 11)
+
+        # Group by (alpha, step) and average the success rates
+        avg_success = (
+            self.real_success_rates.groupby(["alpha", "step"])["success"].mean().reset_index()
+        )
+        # Interpolate to match the grid shape
+        points = avg_success[["alpha", "step"]].values
+        values = avg_success["success"].values
+        grid_success = griddata(
+            points,
+            values,
+            (10**alpha_grid, step_grid)
+        )
 
         heatmap = axes[0].contourf(
             10**alpha_grid,
             step_grid,
-            self.real_success_rates.set_index(["alpha", "step"]).reindex(
-                pd.MultiIndex.from_arrays([10**alpha_grid.ravel(), step_grid.ravel()], names=["alpha", "step"])
-            )["success"].values.reshape(alpha_grid.shape),
+            grid_success,
             levels=50,
             cmap="viridis",
             vmin=0,
