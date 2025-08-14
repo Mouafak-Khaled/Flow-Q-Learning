@@ -65,7 +65,7 @@ def evaluate(row):
     return info["success"]
 
 
-initial_sample = real_success_rates.sample(n=20, random_state=config.seed).copy()
+initial_sample = real_success_rates.sample(n=100, random_state=config.seed).copy()
 simulated_success_rates = initial_sample.apply(evaluate, axis=1)
 
 gp = SuccessRateGaussianProcess(
@@ -74,7 +74,7 @@ gp = SuccessRateGaussianProcess(
     seed=config.seed,
 )
 
-for i in range(80):
+for i in range(100):
     row = gp.ask()
     gp.tell(evaluate(row))
 
